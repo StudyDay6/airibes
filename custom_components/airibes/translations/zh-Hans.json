@@ -1,0 +1,52 @@
+{
+    "title": "Airibes",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Airibes 配置",
+                "description": "设置 Airibes 集成",
+                "data": {
+                    "panel_title": "面板标题",
+                    "clear_data_on_unload": "删除集成时清理存储数据"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Airibes 选项",
+                "description": "配置 {device_name} 选项",
+                "data": {
+                    "clear_data_on_unload": "删除集成时清理存储数据"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "airibes": {
+                "name": "雷达"
+            }
+        },
+        "select": {
+            "airibes": {
+                "high": "高",
+                "medium": "中",
+                "low": "低"
+            }
+        },
+        "switch": {
+            "airibes": {
+                "ap": "AP",
+                "learn": "学习"
+            }
+        },
+        "button": {
+            "airibes": {
+                "learn": "自学习"
+            }
+        }
+    },
+    "test": "测试"
+} 

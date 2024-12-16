@@ -1,0 +1,22 @@
+{
+  "domain": "airibes",
+  "name": "Airibes",
+  "version": "1.0.0",
+  "documentation": "https://github.com/StudyDay6/airibes",
+  "dependencies": ["frontend", "mqtt"],
+  "codeowners": ["@your_username"],
+  "requirements": [
+    "aiofiles"
+  ],
+  "iot_class": "local_polling",
+  "config_flow": true,
+  "icon": "mdi:radar",
+  "quality_scale": "silver",
+  "brand": true,
+  "translations": {
+    "en": "translations/en.json",
+    "fr": "translations/fr.json",
+    "zh_Hans": "translations/zh_Hans.json",
+    "de": "translations/de.json"
+  }
+} 

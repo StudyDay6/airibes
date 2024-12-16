@@ -1,0 +1,19 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Intégration personnalisée",
+                "description": "Configurer l'intégration personnalisée",
+                "data": {
+                    "name": "Nom",
+                    "panel_title": "Titre du panneau",
+                    "clear_data_on_unload": "Effacer les données lors de la suppression"
+                }
+            }
+        }
+    },
+    "panel": {
+        "title": "Mon Plan",
+        "edit_button": "Modifier le plan"
+    }
+} 

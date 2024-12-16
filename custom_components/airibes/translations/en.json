@@ -1,0 +1,41 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Custom Integration",
+                "description": "Set up custom integration",
+                "data": {
+                    "name": "Name",
+                    "panel_title": "Panel Title",
+                    "clear_data_on_unload": "Clear stored data when removing integration"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "airibes": {
+                "name": "Radar"
+            }
+        },
+        "select": {
+            "airibes": {
+                "high": "High",
+                "medium": "Medium",
+                "low": "Low"
+            }
+        },
+        "switch": {
+            "airibes": {
+                "ap": "AP",
+                "learn": "Learn"
+            }
+        },
+        "button": {
+            "airibes": {
+                "learn": "Learning"
+            }
+        }
+    },
+    "test": "tteeeee"
+} 

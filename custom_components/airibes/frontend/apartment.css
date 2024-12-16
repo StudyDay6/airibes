@@ -1,0 +1,1443 @@
+:host {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.apartment-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--app-header-background-color);
+    color: var(--app-header-text-color);
+    height: 25px;
+}
+
+.back-button {
+    --mdc-theme-primary: var(--app-header-text-color);
+    margin-right: 16px;
+}
+
+.title {
+    font-size: 20px;
+    font-weight: 400;
+    text-align: center;
+    flex: 1;
+}
+
+.canvas-container {
+    display: grid;
+    grid-template-columns: 30px 1fr 250px;
+    grid-template-rows: 30px 1fr;
+    width: 100%;
+    height: calc(100% - 50px);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+.ruler-corner {
+    grid-column: 1;
+    grid-row: 1;
+    background: #f0f0f0;
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    width: 30px;
+    height: 30px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #000;
+}
+
+.ruler-top {
+    grid-column: 2;
+    grid-row: 1;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    height: 30px;
+    width: 100%;
+    z-index: 2;
+}
+
+.canvas-wrapper {
+    grid-column: 2;
+    grid-row: 2;
+    overflow: auto;
+    position: relative;
+    background: #fff;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+    margin: 0;
+    padding: 0;
+    margin-left: -30px;
+    padding-left: 30px;
+}
+
+.canvas-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    grid-template-rows: 1fr;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.ruler-left {
+    grid-column: 1;
+    grid-row: 1;
+    background: #f0f0f0;
+    border-right: 1px solid #ccc;
+    width: 30px;
+    height: 100%;
+    position: sticky;
+    left: -30px;
+    z-index: 1;
+}
+
+.drawing-area {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    cursor: default;
+}
+
+#mainCanvas {
+    display: block;
+}
+
+.toolbar {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    background: var(--card-background-color);
+    border-left: 1px solid var(--divider-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.toolbar-menu {
+    display: flex;
+    padding: 8px;
+    border-bottom: 1px solid var(--divider-color);
+    background: var(--card-background-color);
+}
+
+.menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background-color 0.3s;
+    color: var(--primary-text-color);
+    font-size: 12px;
+}
+
+.menu-item ha-icon {
+    margin-bottom: 4px;
+    --mdc-icon-size: 20px;
+}
+
+.menu-item:hover {
+    background-color: var(--secondary-background-color);
+}
+
+.menu-item.active {
+    background-color: var(--primary-color);
+    color: var(--text-primary-color);
+}
+
+.tool-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.tool-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 8px;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tool-item:hover {
+    background: var(--secondary-background-color);
+    border-color: var(--primary-color);
+}
+
+.tool-item ha-icon {
+    margin-bottom: 8px;
+    --mdc-icon-size: 24px;
+    color: var(--primary-text-color);
+}
+
+.tool-item span {
+    font-size: 14px;
+    color: var(--primary-text-color);
+    text-align: center;
+}
+
+.empty-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    color: var(--secondary-text-color);
+    font-size: 14px;
+}
+
+.canvas-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.preview-box {
+    position: absolute;
+    border: 2px dashed var(--primary-color);
+    background-color: rgba(var(--rgb-primary-color), 0.1);
+    pointer-events: none;
+}
+
+.preview-box.invalid {
+    border-color: var(--error-color);
+    background-color: rgba(var(--rgb-error-color), 0.1);
+}
+
+.preview-box.overlap {
+    border-color: var(--error-color);
+    background-color: rgba(var(--rgb-error-color), 0.1);
+}
+
+.room {
+    position: absolute;
+    border: 2px solid var(--primary-color);
+    background-color: transparent;
+    cursor: move;
+}
+
+.size-label {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 12px;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.width-label {
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.height-label {
+    right: 12px;
+    top: 50%;
+    transform: translateY(50%) rotate(90deg);
+    transform-origin: right center;
+}
+
+.room-name {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--primary-text-color);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.sticker-preview, .sticker {
+    position: absolute;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    overflow: visible;
+    transform-origin: center center;
+}
+
+.sticker-preview {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.sticker svg {
+    width: 100%;
+    height: 100%;
+}
+
+.sticker-preview svg {
+    width: 100%;
+    height: 100%;
+    opacity: 0.7;
+}
+
+.sticker-size {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--primary-text-color);
+    /* background: rgba(255, 255, 255, 0.8); */
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+/* 移除贴纸名称相关样式 */
+.sticker-name {
+    display: none;
+}
+
+.area-preview, .area {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    cursor: move;
+}
+
+.area-preview {
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.area-name {
+    font-size: 14px;
+    color: var(--primary-text-color);
+    margin-bottom: 4px;
+}
+
+.area-size {
+    font-size: 12px;
+    color: var(--primary-text-color);
+    opacity: 0.8;
+}
+
+.area.selected {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+}
+
+.edit-controls {
+    position: absolute;
+    top: -24px;
+    left: -24px;
+    right: -24px;
+    bottom: -24px;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.control-button {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background: var(--card-background-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+}
+
+.control-button:hover {
+    background: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.control-button:hover ha-icon {
+    color: var(--text-primary-color);
+}
+
+.control-button ha-icon {
+    --mdc-icon-size: 20px;
+    color: var(--primary-color);
+    transition: transform 0.3s;
+}
+
+.rotate-button {
+    top: -16px;
+    left: -16px;
+    cursor: grab;
+}
+
+.rotate-button:active {
+    cursor: grabbing;
+}
+
+.edit-button {
+    top: -16px;
+    right: -16px;
+}
+
+.delete-button {
+    bottom: -16px;
+    left: -16px;
+}
+
+.resize-button {
+    bottom: -16px;
+    right: -16px;
+    cursor: nw-resize;
+}
+
+.resize-button:active {
+    cursor: nw-resize;
+}
+
+/* 修改贴纸和区域的样式，使其可以被选中 */
+.sticker, .area {
+    pointer-events: auto;
+}
+
+/* 添加房间的选中样式 */
+.room.selected {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+}
+
+.device-preview, .device {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    transform-origin: center center;
+    border: none;
+    background: none;
+}
+
+.device-preview {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.device-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.radar-icon {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--primary-color);
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.radar-icon ha-icon {
+    --mdc-icon-size: 24px;
+    color: var(--primary-color);
+    margin-bottom: 12px;
+}
+
+.device-label {
+    position: absolute;
+    font-size: 10px;
+    color: var(--primary-color);
+    font-weight: 500;
+    bottom: 0px;
+    width: 100%;
+    text-align: center;
+}
+
+/* 移除之前的雷达波形相关样式 */
+.radar-dot,
+.radar-wave,
+.radar-wave::before,
+.radar-wave::after {
+    display: none;
+}
+
+.tool-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.device.selected {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+}
+
+.resize-button ha-icon {
+    --mdc-icon-size: 20px;
+    color: var(--primary-color);
+    transform: rotate(90deg);
+    transition: transform 0.3s;
+}
+
+.resize-button:hover ha-icon {
+    color: var(--text-primary-color);
+    transform: rotate(90deg) scale(1.1);
+}
+
+.area-label {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: var(--primary-text-color);
+    font-weight: 500;
+    z-index: 1;
+}
+
+.area-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    z-index: 1;
+    width: 100%;
+    padding: 16px 8px;
+    box-sizing: border-box;
+}
+
+.area-label {
+    font-size: 12px;
+    color: #000000;
+    font-weight: 500;
+    width: 100%;
+    text-align: center;
+    word-wrap: break-word;
+    line-height: 1.2;
+    margin-top: 8px;
+}
+
+.area-size {
+    font-size: 12px;
+    color: #000000;
+    font-weight: 500;
+    width: 100%;
+    text-align: center;
+    margin-top: 12px;
+}
+
+.area-preview.overlap .area-border,
+.area.overlap .area-border {
+    border-color: var(--error-color) !important;
+    border-style: dashed !important;
+}
+
+.area-preview.overlap .area-background,
+.area.overlap .area-background {
+    background-color: rgba(var(--rgb-error-color), 0.25) !important;
+}
+
+.area-preview.invalid .area-size,
+.area.invalid .area-size {
+    text-decoration: line-through;
+    color: var(--error-color) !important;
+}
+
+.area-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    z-index: 1;
+    width: 100%;
+    padding: 16px 8px;
+    box-sizing: border-box;
+}
+
+.area-size {
+    font-size: 12px;
+    color: #000000;
+    font-weight: 500;
+    width: 100%;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.irregular-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.temp-line {
+    position: absolute;
+    height: 2px;
+    background-color: var(--primary-color);
+    transform-origin: left center;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.irregular-preview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.irregular-room {
+    position: absolute;
+    pointer-events: auto;
+    cursor: move;
+}
+
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.dialog {
+    background: var(--card-background-color);
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 300px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dialog-title {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: var(--primary-text-color);
+}
+
+.dialog-content {
+    margin-bottom: 24px;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.form-field {
+    margin-bottom: 16px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--primary-text-color);
+}
+
+.form-field input,
+.form-field select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    background: var(--card-background-color);
+    color: var(--primary-text-color);
+}
+
+.form-field .color-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.color-option {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.color-option.selected {
+    border-color: var(--primary-color);
+}
+
+.switch-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.area-name {
+    font-size: 12px;
+    color: var(--primary-text-color);
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.color-picker-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.current-color {
+    width: 100%;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--divider-color);
+}
+
+ha-colorpicker {
+    width: 100%;
+    min-height: 200px;
+    --ha-color-picker-wheel-borderwidth: 2px;
+    --ha-color-picker-wheel-bordercolor: var(--divider-color);
+    --ha-color-picker-wheel-shadow: none;
+    --ha-color-picker-marker-borderwidth: 2px;
+    --ha-color-picker-marker-bordercolor: var(--primary-text-color);
+}
+
+.dialog-buttons mwc-button {
+    margin-left: 8px;
+}
+
+.color-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.color-input {
+    width: 50px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.color-preview {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.color-value {
+    font-size: 14px;
+    color: var(--primary-text-color);
+    font-family: monospace;
+}
+
+.device.offline .radar-icon {
+    border-color: #999;
+}
+
+.device.offline ha-icon {
+    color: #999;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.settings-button {
+    --mdc-theme-primary: var(--primary-text-color);
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    min-width: 30%;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.custom-size-fields {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.size-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.size-input input {
+    width: 100px;
+}
+
+.size-input span {
+    color: var(--primary-text-color);
+}
+
+.switch-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#style-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    background: var(--card-background-color);
+    color: var(--primary-text-color);
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.form-row label {
+    min-width: 100px;
+}
+
+.form-row input,
+.form-row select {
+    flex: 1;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.tool-grid.two-columns {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px;
+}
+
+.alignment-line {
+    position: absolute;
+    background-color: var(--primary-color);
+    pointer-events: none;
+    z-index: 99;
+}
+
+.alignment-line.vertical {
+    width: 1px;
+    height: 100%;
+}
+
+.alignment-line.horizontal {
+    height: 1px;
+    width: 100%;
+}
+
+.selected {
+    outline: none;
+}
+
+/* 移除工具项的选中样式 */
+.tool-item.selected {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.tool-item.selected ha-icon,
+.tool-item.selected span {
+    color: var(--text-primary-color);
+}
+
+/* 修改房间的选中样式 */
+.room.selected {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+}
+
+/* 移除长按相关的样式 */
+.room:active {
+    outline: none;
+}
+
+/* 设备网格样式 */
+.device-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px;
+}
+
+/* 设备项样式 */
+.device-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 6px;
+    cursor: move;
+    background: var(--card-background-color);
+    transition: all 0.3s ease;
+}
+
+.device-item:hover {
+    background: var(--primary-color, #03a9f4);
+    color: var(--text-primary-color, #fff);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.device-item ha-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+    color: var(--primary-color);
+}
+
+.device-item:hover ha-icon {
+    color: var(--text-primary-color, #fff);
+}
+
+.device-item span {
+    font-size: 12px;
+    text-align: center;
+}
+
+/* 设备预览样式 */
+.device-preview {
+    position: fixed;
+    width: 50px;
+    height: 50px;
+    background: var(--card-background-color, #fff);
+    border: 2px solid var(--primary-color, #4CAF50);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.device-preview ha-icon {
+    font-size: 24px;
+    color: var(--primary-color, #4CAF50);
+}
+
+/* 设备元素样式 */
+.device-element {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: var(--card-background-color, #fff);
+    border: 2px solid var(--primary-color, #4CAF50);
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform-origin: center center;
+}
+
+.device-element:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.device-element ha-icon {
+    font-size: 24px;
+    color: var(--primary-color, #4CAF50);
+}
+
+.device-element .device-name {
+    position: absolute;
+    top: 0px;
+    white-space: nowrap;
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+/* 空内容样式 */
+.empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--secondary-text-color, #666);
+    text-align: center;
+}
+
+.empty-content ha-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+    color: var(--disabled-text-color, #999);
+}
+
+/* 修改设备元素的选中样式，与房间和区域保持一致 */
+.device-element.selected {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+    border-color: var(--primary-color);
+}
+
+.device-element.selected ha-icon {
+    color: var(--primary-color);
+}
+
+/* 移除之前的选中样式 */
+.device-element.selected {
+    box-shadow: none;
+}
+
+/* 修改禁用状态的设备项样式 */
+.device-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    background: var(--disabled-background-color, #f0f0f0);
+    border-color: var(--disabled-text-color, #999);
+}
+
+.device-item.disabled ha-icon {
+    color: var(--disabled-text-color, #999);
+}
+
+.device-item.disabled span {
+    color: var(--disabled-text-color, #999);
+}
+
+/* 贴纸项样式 */
+.sticker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 6px;
+    cursor: move;
+    background: var(--card-background-color);
+    transition: all 0.3s ease;
+}
+
+.sticker-item:hover {
+    background: var(--primary-color);
+    color: var(--text-primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.sticker-item ha-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+    color: var(--primary-color);
+}
+
+.sticker-item:hover ha-icon {
+    color: var(--text-primary-color);
+}
+
+.sticker-item span {
+    font-size: 12px;
+    text-align: center;
+}
+
+/* 贴纸预览样式 */
+.sticker-preview {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    background: var(--card-background-color);
+    border: 2px solid var(--primary-color);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.sticker-preview ha-icon {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+
+/* 贴纸元素样式 */
+.sticker-element {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    pointer-events: none;
+}
+
+.sticker-element {
+    pointer-events: auto;
+    cursor: move;
+}
+
+.sticker-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.sticker-content svg {
+    width: 100%;
+    height: 100%;
+}
+
+.sticker-name {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 12px;
+    background: var(--card-background-color);
+    padding: 2px 6px;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.sticker-size {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--secondary-text-color);
+}
+
+/* 选中状态样式 */
+.sticker-element.selected {
+    outline: 2px dashed var(--primary-color);
+    outline-offset: 4px;
+}
+
+/* 修改贴纸图标样式 */
+.sticker-icon {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 4px;
+    object-fit: contain;
+}
+
+.sticker-item .sticker-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.sticker-preview .sticker-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.sticker-element .sticker-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* 修改贴纸项悬停样式 */
+.sticker-item:hover .sticker-icon {
+    filter: brightness(0) invert(1);  /* 将图标变为白色 */
+}
+
+/* 提示样式 */
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 1000;
+    animation: fadeInOut 3s ease;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* 添加只读输入框样式 */
+.readonly-input {
+    background-color: var(--disabled-background-color, #f0f0f0);
+    color: var(--primary-text-color);
+    cursor: not-allowed;
+}
+
+/* 修改数字输入框样式 */
+input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    background: var(--card-background-color);
+    color: var(--primary-text-color);
+}
+
+input[type="number"]:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+/* 添加信息行样式 */
+.info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.info-label {
+    color: var(--secondary-text-color);
+    min-width: 80px;
+}
+
+.info-value {
+    color: var(--primary-text-color);
+    font-weight: 500;
+}
+
+/* 添加安装角度选项样式 */
+.angle-options {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+}
+
+.angle-option {
+    position: relative;
+    cursor: pointer;
+    border: 2px solid var(--divider-color);
+    border-radius: 8px;
+    padding: 4px;
+    transition: all 0.3s ease;
+    width: 60px;
+    height: 60px;
+}
+
+.angle-option:hover {
+    border-color: var(--primary-color);
+}
+
+.angle-option.selected {
+    border-color: var(--primary-color);
+    background-color: var(--primary-color-light);
+}
+
+.angle-option img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    transition: transform 0.3s ease;
+}
+
+.check-mark {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--card-background-color);
+    border-radius: 50%;
+    padding: 2px;
+}
+
+.check-mark ha-icon {
+    --mdc-icon-size: 20px;
+    color: var(--primary-color);
+}
+
+/* 确保图片在旋转时保持居中 */
+.angle-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    aspect-ratio: 1;  /* 保持正方形 */
+}
+
+/* 添加安装高度输入容器和提示样式 */
+.height-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.height-suggestion {
+    font-size: 12px;
+    color: var(--secondary-text-color);
+    font-style: italic;
+}
+
+.apartment-select-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.apartment-select-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.apartment-select-container select {
+    min-width: 120px;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    background-color: var(--card-background-color);
+    color: var(--primary-text-color);
+}
+
+.add-apartment-button {
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 4px;
+}
+
+.preview-button {
+    --mdc-theme-primary: var(--primary-text-color);
+    margin-right: 8px;
+}
+
+.door-id {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.person-marker {
+    position: absolute;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    width: 12px;
+    height: 12px;
+    background-image: url('/frontend_static/images/people.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+.person-marker::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+}

@@ -1,0 +1,19 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Benutzerdefinierte Integration",
+                "description": "Benutzerdefinierte Integration einrichten",
+                "data": {
+                    "name": "Name",
+                    "panel_title": "Panel-Titel",
+                    "clear_data_on_unload": "Gespeicherte Daten beim Entfernen löschen"
+                }
+            }
+        }
+    },
+    "panel": {
+        "title": "Mein Layout",
+        "edit_button": "Layout bearbeiten"
+    }
+} 

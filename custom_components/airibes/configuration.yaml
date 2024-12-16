@@ -1,0 +1,5 @@
+panel_custom:
+  - name: cus-panel
+    url_path: cus-panel
+    module_url: /frontend_static/my-panel.js
+    trust_external: true 
