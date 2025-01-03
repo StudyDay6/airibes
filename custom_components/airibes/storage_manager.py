@@ -25,6 +25,7 @@ from .const import (
 import asyncio
 from typing import List
 import time
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +42,37 @@ class StorageManager:
         # 确保存储目录存在
         if not os.path.exists(self._storage_dir):
             os.makedirs(self._storage_dir)
+        
+        # 在 Home Assistant 启动完成后执行初始化操作
+        hass.bus.async_listen_once(
+            EVENT_HOMEASSISTANT_STARTED,
+            self._async_init_apartment_view
+        )
+
+    async def _async_init_apartment_view(self, _event):
+        """在 Home Assistant 启动完成后初始化户型视图."""
+        try:
+            # 等待2秒确保所有组件都已加载完成
+            await asyncio.sleep(2)
+            
+            # 发送户型视图可见性事件
+            # await self.websocket_set_apartment_view_visible(
+            #     self.hass,
+            #     None,
+            #     {
+            #         'type': 'airibes/set_apartment_view_visible',
+            #         'visible': True,
+            #         'apartment_id': 1  # 直接使用户型一
+            #     }
+            # )
+            self.hass.bus.async_fire(EVENT_APARTMENT_VIEW_VISIBLE, {
+                "visible": True,
+                "apartment_id": 1
+            })
+            _LOGGER.info("已初始化户型视图可见性: apartment_id=1")
+            
+        except Exception as e:
+            _LOGGER.error("初始化户型视图可见性失败: %s", str(e))
 
     def register_websocket_commands(self):
         """注册 websocket 命令."""
@@ -92,7 +124,10 @@ class StorageManager:
             self.hass,
             self.websocket_send_reset_nobody_data
         )
-
+        async_register_command(
+            self.hass,
+            self.websocket_learning_data
+        )
     @staticmethod
     @websocket_command({
         vol.Required('type'): 'airibes/get_apartments'
@@ -284,7 +319,7 @@ class StorageManager:
             
             connection.send_result(msg['id'], stored_devices)
         except Exception as e:
-            _LOGGER.error("加载存储的���备数据失败: %s", str(e))
+            _LOGGER.error("加载存储的设备数据失败: %s", str(e))
             connection.send_error(msg['id'], 'load_failed', str(e)) 
 
     @staticmethod
@@ -300,7 +335,6 @@ class StorageManager:
         try:
             visible = msg['visible']
             apartment_id = msg['apartment_id']
-            
             # 发送事件
             # hass.bus.async_fire(EVENT_APARTMENT_VIEW_VISIBLE, {
             #     "visible": visible,
@@ -308,6 +342,7 @@ class StorageManager:
             # })
             
             mqtt_client = hass.data[DOMAIN].get('mqtt_client')
+            mqtt_client.set_apartment_view_visible(apartment_id, visible)
             if not mqtt_client:
                 raise Exception("MQTT客户端未初始化")
 
@@ -550,6 +585,40 @@ class StorageManager:
             
         except Exception as e:
             _LOGGER.error("发送重置无人命令失败: %s", str(e))
+            connection.send_error(msg['id'], 'send_failed', str(e))
+
+    @staticmethod
+    @websocket_command({
+        vol.Required('type'): 'airibes/learning_data',
+        vol.Required('learn_type'): int,    # 1: 无人学习, 2: 单人学习
+        vol.Required('action'): bool,       # True: 开始, False: 结束
+        vol.Required('device_id'): str      # 设备ID
+    })
+    @async_response
+    async def websocket_learning_data(hass: HomeAssistant, connection: ActiveConnection, msg: dict):
+        """处理学习命令."""
+        try:
+            learn_type = msg['learn_type']  # 1 或 2
+            action = msg['action']          # True 或 False
+            device_id = msg['device_id']
+            
+            # 获取 MQTT 客户端
+            mqtt_client = hass.data[DOMAIN].get('mqtt_client')
+            if not mqtt_client:
+                raise Exception("MQTT客户端未初始化")
+            
+            # 发送学习命令
+            await mqtt_client.send_learning_command(device_id, learn_type, action)
+            
+            # 记录日志
+            action_str = "开始" if action else "结束"
+            learn_type_str = "无人" if learn_type == 1 else "单人"
+            _LOGGER.info("发送%s%s学习命令到设备: %s", learn_type_str, action_str, device_id)
+            
+            connection.send_result(msg['id'], {"success": True})
+            
+        except Exception as e:
+            _LOGGER.error("发送学习命令失败: %s", str(e))
             connection.send_error(msg['id'], 'send_failed', str(e))
 
     async def async_clear_storage(self) -> None:

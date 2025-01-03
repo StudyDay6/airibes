@@ -64,11 +64,13 @@ export class PreviewDialog extends HTMLElement {
                 align-items: center;
                 background: #e4eafe;
                 border-radius: 4px;
+                overflow: hidden;
             }
 
             canvas {
+                position: absolute;
                 display: block;
-                background: #E8EAF6;
+                background: #1C3651;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
                 border-radius: 8px;
             }
@@ -92,23 +94,18 @@ export class PreviewDialog extends HTMLElement {
         // 添加样式
         const additionalStyles = document.createElement('style');
         additionalStyles.textContent = `
-            .preview-canvas-container {
-                position: relative;
-            }
-            
             .stickers-container {
                 position: absolute;
                 top: 0;
                 left: 0;
-                width: 100%;
-                height: 100%;
+                right: 0;
+                bottom: 0;
                 pointer-events: none;
+                z-index: 1;
             }
 
             .sticker-element {
                 position: absolute;
-                width: 24px;
-                height: 24px;
                 transform-origin: center;
             }
 
@@ -118,7 +115,12 @@ export class PreviewDialog extends HTMLElement {
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                color: #795548;
+            }
+
+            .sticker-content svg {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
             }
         `;
         this.shadowRoot.appendChild(additionalStyles);
@@ -142,10 +144,21 @@ export class PreviewDialog extends HTMLElement {
 
         const container = this.shadowRoot.querySelector('.preview-canvas-container');
         const content = this.shadowRoot.querySelector('.dialog-content');
+        const stickersContainer = this.shadowRoot.querySelector('.stickers-container');
         
         // 获取内容区域的尺寸，考虑底部空白
         const contentWidth = content.offsetWidth;
         const contentHeight = content.offsetHeight - 16;
+
+        // 设置画布尺寸
+        this.canvas.width = contentWidth;
+        this.canvas.height = contentHeight;
+
+        // 同步更新贴纸容器
+        if (stickersContainer) {
+            stickersContainer.style.width = `${contentWidth}px`;
+            stickersContainer.style.height = `${contentHeight}px`;
+        }
 
         // 计算户型图的边界
         const bounds = this.calculateBounds();
@@ -305,9 +318,9 @@ export class PreviewDialog extends HTMLElement {
                     return this._data.states?.[entityId]?.state === 'on';
                 });
                 
-                roomColor = hasLightOn ? '#F5F5F5' : '#E0E0E0';
+                roomColor = hasLightOn ? '#3A5F8C' : '#1C3651';
             } else {
-                roomColor = '#E8EAF6';
+                roomColor = '#1C3651';
             }
 
             // 绘制房间地板
@@ -321,7 +334,7 @@ export class PreviewDialog extends HTMLElement {
         });
 
         // 绘制所有墙壁（包括相邻墙）
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = '#C1D8ED';
         ctx.lineWidth = 8;
         ctx.lineJoin = 'miter';
 
@@ -344,7 +357,7 @@ export class PreviewDialog extends HTMLElement {
                 if (Math.abs(room.left - (otherRoom.left + otherRoom.width)) < 1 ||
                     Math.abs(otherRoom.left - (room.left + room.width)) < 1) {
                     const x = Math.min(room.left + room.width, otherRoom.left + otherRoom.width);
-                    ctx.strokeStyle = '#333333';
+                    ctx.strokeStyle = '#C1D8ED';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
                     ctx.moveTo(x * this.scale, Math.min(room.top, otherRoom.top) * this.scale);
@@ -356,7 +369,7 @@ export class PreviewDialog extends HTMLElement {
                 if (Math.abs(room.top - (otherRoom.top + otherRoom.height)) < 1 ||
                     Math.abs(otherRoom.top - (room.top + room.height)) < 1) {
                     const y = Math.min(room.top + room.height, otherRoom.top + otherRoom.height);
-                    ctx.strokeStyle = '#333333';
+                    ctx.strokeStyle = '#C1D8ED';
                     ctx.lineWidth = 4;
                     ctx.beginPath();
                     ctx.moveTo(Math.min(room.left, otherRoom.left) * this.scale, y * this.scale);
@@ -382,7 +395,7 @@ export class PreviewDialog extends HTMLElement {
                 const wallThickness = 8;  // 墙厚度（像素）
 
                 // 使用地板颜色擦除门洞位置的墙
-                ctx.strokeStyle = '#E8EAF6';  // 使用地板颜色
+                ctx.strokeStyle = '#1C3651';  // 使用地板颜色
                 ctx.lineWidth = wallThickness + 2;  // 稍微比墙宽一点，确保完全覆盖
 
                 // 计算门的中心点
@@ -461,47 +474,55 @@ export class PreviewDialog extends HTMLElement {
         // 清空现有贴纸
         stickersContainer.innerHTML = '';
 
-        // 计算画布居中偏移
-        const offsetX = (this.canvas.width - this.bounds.width * this.scale) / 2;
-        const offsetY = (this.canvas.height - this.bounds.height * this.scale) / 2;
+        // 设置容器大���和位置与画布完全一致
+        stickersContainer.style.width = `${this.canvas.width}px`;
+        stickersContainer.style.height = `${this.canvas.height}px`;
+        stickersContainer.style.left = `${this.canvas.offsetLeft}px`;
+        stickersContainer.style.top = `${this.canvas.offsetTop}px`;
 
-        // 过滤出在房间内的贴纸，但门贴纸只保留在墙上的
+        // 过滤出有效贴纸（只处理家具类贴纸）
         const validStickers = stickers.filter(sticker => {
-            if (sticker.type === 'door') return false; // 门已经在drawRooms中处理过了
-            
-            // 检查贴纸是否在任何房间内
+            // 只排除门，因为贴纸里只有门和家具
+            if (sticker.type === 'door') return false;
             return rooms.some(room => this.isElementInRoom(sticker, room));
         });
 
-        // 创建贴纸元素
+        // 计算画布偏移
+        const offsetX = (this.canvas.width - this.bounds.width * this.scale) / 2;
+        const offsetY = (this.canvas.height - this.bounds.height * this.scale) / 2;
+
         validStickers.forEach(sticker => {
             const stickerInfo = STICKER_TYPES[sticker.type];
             if (!stickerInfo) return;
 
             const stickerElement = document.createElement('div');
             stickerElement.className = 'sticker-element';
-            
-            // 计算位置（考虑边界、偏移和缩放）
+
+            // 计算贴纸位置（考虑偏移和缩放）
             const x = (sticker.left - this.bounds.minX) * this.scale + offsetX;
             const y = (sticker.top - this.bounds.minY) * this.scale + offsetY;
             const width = sticker.width * this.scale;
             const height = sticker.height * this.scale;
 
-            // 设置位置和尺寸
-            stickerElement.style.left = `${x}px`;
-            stickerElement.style.top = `${y}px`;
-            stickerElement.style.width = `${width}px`;
-            stickerElement.style.height = `${height}px`;
+            // 设置样式
+            Object.assign(stickerElement.style, {
+                left: `${x}px`,
+                top: `${y}px`,
+                width: `${width}px`,
+                height: `${height}px`
+            });
 
             // 设置旋转
             if (sticker.rotation) {
                 stickerElement.style.transform = `rotate(${sticker.rotation}deg)`;
             }
 
-            // 添加SVG内容
+            // 添加内容时包装 SVG
             stickerElement.innerHTML = `
                 <div class="sticker-content">
-                    ${stickerInfo.getSvg()}
+                    <div style="width: 100%; height: 100%;">
+                        ${stickerInfo.getSvg()}
+                    </div>
                 </div>
             `;
 

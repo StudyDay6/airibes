@@ -23,11 +23,11 @@ async def async_setup_entry(
         """创建房间传感器."""
         sensor = RoomBinarySensor(
             hass, 
-            discovery_info["room_id"], 
+            discovery_info["room_id"],
             discovery_info["name"],
             discovery_info["apartment_id"]
         )
-        async_add_entities([sensor])  # 直接添加到 HA
+        async_add_entities([sensor])
         return sensor
 
     async def async_add_area_sensor(discovery_info: dict) -> AreaBinarySensor:
@@ -38,7 +38,7 @@ async def async_setup_entry(
             discovery_info["name"],
             discovery_info["apartment_id"]
         )
-        async_add_entities([sensor])  # 直接添加到 HA
+        async_add_entities([sensor])
         return sensor
 
     # 保存创建方法到 hass.data

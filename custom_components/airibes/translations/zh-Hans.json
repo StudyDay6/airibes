@@ -26,7 +26,11 @@
     "entity": {
         "sensor": {
             "airibes": {
-                "name": "雷达"
+                "name": "雷达",
+                "state": {
+                    "online": "在线",
+                    "offline": "离线"
+                }
             }
         },
         "select": {
@@ -44,7 +48,11 @@
         },
         "button": {
             "airibes": {
-                "learn": "自学习"
+                "learn": "自学习",
+                "has_people_learn": "单人走动学习",
+                "no_people_learn": "空间无人学习",
+                "device_offline": "设备当前不在线，需要设备在线才能进行学习",
+                "device_offline_title": "设备不在线"
             }
         }
     },

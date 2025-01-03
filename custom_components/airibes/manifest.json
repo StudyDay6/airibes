@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "documentation": "https://github.com/StudyDay6/airibes",
   "dependencies": ["frontend", "mqtt"],
-  "codeowners": ["@your_username"],
+  "codeowners": ["@StudyDay6"],
   "requirements": [
     "aiofiles"
   ],

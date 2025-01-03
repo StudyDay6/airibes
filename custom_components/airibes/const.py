@@ -87,7 +87,7 @@ RADAR_CLIFE_PROFILE = {
 }
 
 # 面板相关常量
-PANEL_ICON = "mdi:view-dashboard"
+PANEL_ICON = "mdi:floor-plan"
 PANEL_URL = "/api/panel/airibes"
 FRONTEND_SCRIPT_URL = "/frontend_static/my-panel.js"
 APARTMENT_SCRIPT_URL = "/frontend_static/apartment.js"
@@ -110,3 +110,4 @@ AES_IV_HEX = '00000000000000000000000000000000'
 
 # 事件常量
 EVENT_APARTMENT_VIEW_VISIBLE = f"{DOMAIN}_apartment_view_visible"  # 户型视图可见性事件
+EVENT_DATA_FORMAT_ERROR = "airibes_apartment_data_format_error"

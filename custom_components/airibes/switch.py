@@ -30,7 +30,7 @@ async def async_setup_entry(
     # Restore switch entities from storage
     switches = []
     for device_id, device_data in stored_devices.items():
-        name = device_data.get("name", get_translation_key("entity.sensor.airibes.name"))
+        name = get_translation_key("entity.sensor.airibes.name")
         
         # AP switch
         switch_entity_id = f"{DOMAIN}_radar_{device_id}_ap"
@@ -127,7 +127,7 @@ class RadarAPSwitch(SwitchEntity):
         # Device Information
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
-            name=name,
+            name=get_translation_key("entity.sensor.airibes.name"),
             manufacturer="H&T",
             model="Radar Sensor",
             sw_version="1.0",

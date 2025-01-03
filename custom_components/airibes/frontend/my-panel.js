@@ -1,5 +1,6 @@
-import { getTranslation } from './translations.js';
+import { getTranslation, getTranslationValue } from './translations.js';
 import { STICKER_TYPES, AREA_TYPES } from './constants.js';
+
 if (!customElements.get('cus-panel')) {
   customElements.define(
     "cus-panel",
@@ -85,7 +86,7 @@ if (!customElements.get('cus-panel')) {
                                 class="reset-button"
                                 id="reset-button">
                                 <ha-icon icon="mdi:account-off"></ha-icon>
-                                重置无人
+                                ${getTranslationValue('reset_position', this._hass?.language || 'en')}
                             </mwc-button>
                             <mwc-button 
                                 class="export-button"
@@ -180,7 +181,7 @@ if (!customElements.get('cus-panel')) {
                 }
             }
         } catch (error) {
-            console.error('加载户型数据失败:', error);
+            
         }
       }
 
@@ -204,6 +205,7 @@ if (!customElements.get('cus-panel')) {
 
         if (this.apartmentData) {
             this.drawApartment();
+            this.updateResetButton();
         }
       }
 
@@ -309,12 +311,12 @@ if (!customElements.get('cus-panel')) {
             });
             
             if (hasLightOn) {
-              roomColor = '#F5F5F5'; // 亮色
+              roomColor = '#203B5544'; // 亮色
             } else {
-              roomColor = '#E0E0E0'; // 暗色
+              roomColor = '#203B55'; // 暗色
             }
           } else {
-            roomColor = '#E8EAF6'; // 默认颜色(没有灯具的房间)
+            roomColor = '#203B55'; // 默认颜色(没有灯具的房间)
           }
 
           // 绘制房间地板
@@ -323,7 +325,7 @@ if (!customElements.get('cus-panel')) {
         });
 
         // 绘制墙壁
-        ctx.strokeStyle = '#333333';  // 深色墙壁
+        ctx.strokeStyle = '#64758B';  // 深色墙壁
         ctx.lineWidth = 8;  // 加粗的墙
         ctx.lineJoin = 'miter';  // 尖角连接
 
@@ -341,16 +343,14 @@ if (!customElements.get('cus-panel')) {
                 sticker.type === 'door' && 
                 this.isDoorOnRoomWall(sticker, room)
             );
-
-            // 为每个门创建门洞
+            // 为每个门建门洞
             doors.forEach(door => {
                 if (!door.isValid) return; // 如果门是无效的则跳过不创建门洞
-
                 const doorWidth = door.height;  // 门洞宽度（厘米）
                 const wallThickness = 8;  // 墙厚度（像素）
 
                 // 使用地板颜色擦除门洞位置的墙
-                ctx.strokeStyle = '#E8EAF6';  // 使用地板颜色
+                ctx.strokeStyle = '#203B55';  // 使用地板颜色
                 ctx.lineWidth = wallThickness + 2;  // 稍微比墙宽一点，确保完全覆盖
 
                 // 计算门的中心点
@@ -358,11 +358,10 @@ if (!customElements.get('cus-panel')) {
                 const doorCenterY = door.top + door.height / 2;
 
                 // 判断门在哪面墙上
-                const onLeftWall = Math.abs(doorCenterX - room.left) < 5;
-                const onRightWall = Math.abs(doorCenterX - (room.left + room.width)) < 5;
-                const onTopWall = Math.abs(doorCenterY - room.top) < 5;
-                const onBottomWall = Math.abs(doorCenterY - (room.top + room.height)) < 5;
-
+                const onLeftWall = Math.abs(doorCenterX - room.left) < 10;
+                const onRightWall = Math.abs(doorCenterX - (room.left + room.width)) < 10;
+                const onTopWall = Math.abs(doorCenterY - room.top) < 10;
+                const onBottomWall = Math.abs(doorCenterY - (room.top + room.height)) < 10;
                 ctx.beginPath();
                 if (onLeftWall || onRightWall) {
                     // 垂直墙上的门
@@ -388,7 +387,7 @@ if (!customElements.get('cus-panel')) {
                 if (Math.abs(room.left - (otherRoom.left + otherRoom.width)) < 1 ||
                     Math.abs(otherRoom.left - (room.left + room.width)) < 1) {
                     const x = Math.min(room.left + room.width, otherRoom.left + otherRoom.width);
-                    ctx.strokeStyle = '#333333';
+                    ctx.strokeStyle = '#64758B';
                     ctx.lineWidth = 4;  // 相邻墙减半
                     ctx.beginPath();
                     ctx.moveTo(x, Math.min(room.top, otherRoom.top));
@@ -400,7 +399,7 @@ if (!customElements.get('cus-panel')) {
                 if (Math.abs(room.top - (otherRoom.top + otherRoom.height)) < 1 ||
                     Math.abs(otherRoom.top - (room.top + room.height)) < 1) {
                     const y = Math.min(room.top + room.height, otherRoom.top + otherRoom.height);
-                    ctx.strokeStyle = '#333333';
+                    ctx.strokeStyle = '#64758B';
                     ctx.lineWidth = 4;  // 相邻墙减半
                     ctx.beginPath();
                     ctx.moveTo(Math.min(room.left, otherRoom.left), y);
@@ -412,7 +411,7 @@ if (!customElements.get('cus-panel')) {
 
         // 绘制房间名称
         rooms.forEach(room => {
-            ctx.fillStyle = '#000000';
+            ctx.fillStyle = '#64758B';
             ctx.font = '14px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -427,18 +426,16 @@ if (!customElements.get('cus-panel')) {
             y: door.top + door.height / 2
         };
 
-        const tolerance = 5;  // 容差值
+        const tolerance = 10;  // 容差值
 
         // 检查是否在房间的四面墙上
         const onLeftWall = Math.abs(doorCenter.x - room.left) < tolerance;
         const onRightWall = Math.abs(doorCenter.x - (room.left + room.width)) < tolerance;
         const onTopWall = Math.abs(doorCenter.y - room.top) < tolerance;
         const onBottomWall = Math.abs(doorCenter.y - (room.top + room.height)) < tolerance;
-
         // 检查是否在房间范围
         const inHorizontalRange = doorCenter.x >= room.left && doorCenter.x <= room.left + room.width;
         const inVerticalRange = doorCenter.y >= room.top && doorCenter.y <= room.top + room.height;
-
         return ((onLeftWall || onRightWall) && inVerticalRange) ||
                ((onTopWall || onBottomWall) && inHorizontalRange);
       }
@@ -462,8 +459,8 @@ if (!customElements.get('cus-panel')) {
           ctx.stroke();
 
           // 绘制区域名称
-          ctx.fillStyle = '#000000';
-          ctx.font = '12px Arial';
+          ctx.fillStyle = area.color;
+          ctx.font = '10px Arial';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(area.name, area.left + area.width / 2, area.top + area.height / 2);
@@ -496,6 +493,19 @@ if (!customElements.get('cus-panel')) {
         if (this.apartmentData && this.apartmentData.devices) {
           this.apartmentData.devices.forEach(device => {
             if (device.visible === false) return;
+            // 先检查设备实体是否可用
+            let entityId;
+            if (device.type === 'radar') {
+                entityId = `sensor.airibes_radar_${device.id.toLowerCase()}`;
+            } else {
+                entityId = device.id;
+            }
+            
+            // 如果实体不存在，跳过该设备
+            if (!this._hass.states[entityId]) {
+                console.log(`设备 ${device.id} 的实体 ${entityId} 不可用，跳过渲染`);
+                return;
+            }
             // 检查设备是否在任何房间内
             const isInAnyRoom = this.apartmentData.rooms.some(room => 
               this.isElementInRoom({
@@ -593,6 +603,9 @@ if (!customElements.get('cus-panel')) {
                 this.drawApartment();
             }
         }
+
+        // 在 connectedCallback 中也调用一次
+        this.updateResetButton();
       }
 
       disconnectedCallback() {
@@ -617,14 +630,13 @@ if (!customElements.get('cus-panel')) {
                 visible: false,
                 apartment_id: this.currentApartmentId || 1
             }).catch(error => {
-                console.error('通知后端户型视图不可见失败:', error);
+                // error
             });
         }
       }
 
       _handleDeviceStateUpdate(event) {
         const { device_id, status } = event.data;
-        console.log("设备状态更新:", device_id, status);
         
         // 找到对应的设备元素
         const deviceContainer = this.shadowRoot.querySelector('.stickers-container');
@@ -643,32 +655,32 @@ if (!customElements.get('cus-panel')) {
         if (!deviceElement) return;
 
         // 获取新的状态和颜色
-        let iconColor = 'var(--disabled-text-color)'; // 默认灰色
+        let iconColor = 'var(--disabled-text-color)'; 
         const state = this._hass.states[entityId]?.state || 'unavailable';
 
         // 根据设备类型和状态设置颜色
         switch (status.type) {
           case 'radar':
             if (state === '在线') {
-              iconColor = 'var(--success-color)'; // 在线/有人时绿色
+              iconColor = 'var(--success-color)'; 
             } else if (state === 'off') {
-              iconColor = 'var(--primary-color)'; // 在线/无人时蓝色
+              iconColor = 'var(--primary-color)'; 
             }
             break;
             
           case 'light':
             if (state === 'on') {
-              iconColor = 'var(--warning-color)'; // 开启时黄色
+              iconColor = 'var(--warning-color)'; 
             } else if (state === 'off') {
-              iconColor = 'var(--primary-color)'; // 关闭时蓝色
+              iconColor = 'var(--primary-color)'; 
             }
             break;
             
           case 'climate':
             if (state === 'on' || state === 'heat' || state === 'cool') {
-              iconColor = 'var(--info-color)'; // 运行时蓝色
+              iconColor = 'var(--info-color)'; 
             } else if (state === 'off') {
-              iconColor = 'var(--primary-color)'; // 关闭时默认色
+              iconColor = 'var(--primary-color)'; 
             }
             break;
         }
@@ -688,21 +700,44 @@ if (!customElements.get('cus-panel')) {
             const lovelaceConfig = await this._hass.callWS({
                 type: "lovelace/config"
             });
-
-            // 检查一个视图中是否已存在户型卡片
-            const view = lovelaceConfig.views[0];
-            if (!view.cards) {
-                view.cards = [];
+            console.log("lovelaceConfig", lovelaceConfig);
+            // 检查配置和视图是否存在
+            if (!lovelaceConfig || !lovelaceConfig.views || !Array.isArray(lovelaceConfig.views)) {
+                console.error("无效的 Lovelace 配置");
+                this.showToast(translations.export_card_failed);
+                return;
             }
 
-            // 检查是否已存在户型卡片
-            const hasApartmentCard = view.cards.some(card => 
-                card.type === "custom:apartment-card"
-            );
+            // 检查所有视图中是否已存在户型卡片
+            let hasApartmentCard = false;
+            lovelaceConfig.views.forEach(view => {
+                if (view.cards && Array.isArray(view.cards)) {
+                    if (view.cards.some(card => card.type === "custom:apartment-card")) {
+                        hasApartmentCard = true;
+                    }
+                }
+            });
 
             if (hasApartmentCard) {
                 this.showToast(translations.export_card_exist);
                 return;
+            }
+
+            // 找到第一个有效的视图，如果没有则创建一个
+            let targetView = lovelaceConfig.views.find(view => view && view.cards);
+            if (!targetView) {
+                if (lovelaceConfig.views.length === 0) {
+                    // 如果没有视图，创建一个新视图
+                    lovelaceConfig.views.push({
+                        title: "Home",
+                        cards: []
+                    });
+                    targetView = lovelaceConfig.views[0];
+                } else {
+                    // 使用第一个视图，并确保它有 cards 数组
+                    targetView = lovelaceConfig.views[0];
+                    targetView.cards = targetView.cards || [];
+                }
             }
 
             // 创建户型卡片配置
@@ -710,8 +745,8 @@ if (!customElements.get('cus-panel')) {
                 type: "custom:apartment-card"
             };
 
-            // 添加卡片到视图
-            view.cards.push(cardConfig);
+            // 添加卡片到目标视图
+            targetView.cards.push(cardConfig);
 
             // 保存更新后的配置
             await this._hass.callWS({
@@ -728,7 +763,7 @@ if (!customElements.get('cus-panel')) {
         }
       }
 
-      // 添加加载和注册卡片组件���方法
+      // 添加加载和注册卡片组件方法
       async loadApartmentCard() {
         // 检查是否已经注册
         if (customElements.get('apartment-card')) {
@@ -742,7 +777,6 @@ if (!customElements.get('cus-panel')) {
             // 等待组件注册完成
             await customElements.whenDefined('apartment-card');
         } catch (error) {
-            console.error('加载户型卡片组件失败:', error);
             throw error;
         }
       }
@@ -841,7 +875,6 @@ if (!customElements.get('cus-panel')) {
       // 添加人员位置更新处理方法
       _handlePersonPositionsUpdate(event) {
         const { device_id, positions } = event.data;
-        console.log("收到人员位置更新:", device_id, positions);
         this.personPositions.set(device_id, positions);
         // 重新绘制以更新人员位置
         this.drawApartment();
@@ -851,7 +884,6 @@ if (!customElements.get('cus-panel')) {
       drawPersonPositions(ctx) {
         const stickersContainer = this.shadowRoot.querySelector('.stickers-container');
         if (!stickersContainer) {
-            console.error("找不到 stickers-container");
             return;
         }
 
@@ -872,8 +904,6 @@ if (!customElements.get('cus-panel')) {
         // 清除现有的人员标记
         const existingMarkers = stickersContainer.querySelectorAll('.person-marker');
         existingMarkers.forEach(marker => marker.remove());
-
-        console.log("开始绘制人��位置，数据：", this.personPositions);
 
         // 遍历所有设备的人员位置
         if (this.personPositions && this.personPositions.size > 0) {
@@ -911,14 +941,12 @@ if (!customElements.get('cus-panel')) {
 
                     // 添加到容器
                     stickersContainer.appendChild(marker);
-                    console.log("已添加人员标记:", marker);
                 });
             });
         }
 
         // 验证添加结果
         const addedMarkers = stickersContainer.querySelectorAll('.person-marker');
-        console.log("添加完成，标记数量:", addedMarkers.length);
       }
 
       updateStickers(scale, offsetX, offsetY, bounds) {
@@ -953,7 +981,6 @@ if (!customElements.get('cus-panel')) {
       // 添加重置无人状态的方法
       async resetNoPersonStatus() {
         try {
-            console.log("发送重置无人状态命令");
             // 直接使用当前户型数据中的设备
             const radarDevices = this.apartmentData.devices.filter(device => device.type === 'radar');
             
@@ -964,13 +991,11 @@ if (!customElements.get('cus-panel')) {
                     device_id: device.id,
                     person_id: 255
                 });
-                console.log(`已发送重置无人命令到设备: ${device.id}`);
             }
             
-            this.showToast("重置无人命令已发送");
+            this.showToast(getTranslationValue('reset_nobody_command_sent', this._hass?.language || 'en'));
         } catch (error) {
-            console.error("重置无人状态失败:", error);
-            this.showToast("重置无人命令发送失败");
+            this.showToast(getTranslationValue('reset_nobody_command_failed', this._hass?.language || 'en'));
         }
       }
 
@@ -1011,10 +1036,9 @@ if (!customElements.get('cus-panel')) {
                     person_id: personIndex
                 });
                 popup.remove();
-                this.showToast("已删除监测目标");
+                this.showToast(getTranslationValue('delete_person_target_success', this._hass?.language || 'en'));
             } catch (error) {
-                console.error("删除监测目标失败:", error);
-                this.showToast("删除监测目标失败");
+                this.showToast(getTranslationValue('delete_person_target_failed', this._hass?.language || 'en'));
             }
         });
 
@@ -1072,9 +1096,9 @@ if (!customElements.get('cus-panel')) {
           // 根据设备类型和状态设置颜色
           switch (device.type) {
             case 'radar':
-              if (state === '在线') {
+              if (state === getTranslationValue('online', this._hass?.language || 'en')) {
                 iconColor = 'var(--success-color)'; // 在线/有人时绿色
-              } else if (state === 'off') {
+              } else {
                 iconColor = 'var(--primary-color)'; // 在线/无人时蓝色
               }
               break;
@@ -1105,11 +1129,10 @@ if (!customElements.get('cus-panel')) {
         deviceElement.innerHTML = `
           <div class="device-content">
             <ha-icon icon="${icon}" style="color: ${iconColor};" data-device-id="${device.id}"></ha-icon>
-            <span class="device-name">${device.id.slice(-4)}</span>
           </div>
         `;
 
-        // 添加点击事件处理
+        // 添加点击事件处理 <span class="device-name">${device.id.slice(-4)}</span>
         deviceElement.addEventListener('click', () => {
           let entityId;
           if (device.type === 'radar') {
@@ -1200,9 +1223,9 @@ if (!customElements.get('cus-panel')) {
             
             switch (device.type) {
               case 'radar':
-                if (newState === '在线') {
+                if (newState === getTranslationValue('online', this._hass?.language || 'en')) {
                   iconColor = 'var(--success-color)'; // 在线/有人时绿色
-                } else if (newState === 'off') {
+                } else {
                   iconColor = 'var(--primary-color)'; // 在线/无人时蓝色
                 }
                 break;
@@ -1249,11 +1272,23 @@ if (!customElements.get('cus-panel')) {
         try {
             await this.loadData();
             this.drawApartment();
-            console.log("重连成功");
         } catch (error) {
             console.error("重连失败:", error);
         }
       }
+
+      // 在 render 之后添加检查雷达设备的方法
+      updateResetButton() {
+        const resetButton = this.shadowRoot.getElementById("reset-button");
+        if (!resetButton) return;
+
+        // 检查是否有雷达设备
+        const hasRadarDevices = this.apartmentData?.devices?.some(device => device.type === 'radar') || false;
+        
+        // 根据是否有雷达设备来显示/隐藏按钮
+        resetButton.style.display = hasRadarDevices ? 'inline-flex' : 'none';
+      }
+
     }
   );
 }

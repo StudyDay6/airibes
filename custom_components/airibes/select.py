@@ -32,7 +32,7 @@ async def async_setup_entry(
     # 从存储中恢复选择实体
     selects = []
     for device_id, device_data in stored_devices.items():
-        name = device_data.get("name", get_translation_key("entity.sensor.radar_sensor.name"))
+        name = device_data.get("name", get_translation_key("entity.sensor.airibes.name"))
         select_entity_id = f"{DOMAIN}_radar_{device_id}_level"
 
         select = RadarLevelSelect(
@@ -96,7 +96,7 @@ class RadarLevelSelect(SelectEntity):
         # 设备信息
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
-            name=name,
+            name=get_translation_key("entity.sensor.airibes.name"),
             manufacturer="H&T",
             model="Radar Sensor",
             sw_version="1.0",

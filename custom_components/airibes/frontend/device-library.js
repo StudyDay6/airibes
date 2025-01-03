@@ -1,3 +1,4 @@
+import { getTranslationValue } from './translations.js';
 if (!customElements.get('device-library')) {
   customElements.define(
     "device-library",
@@ -51,7 +52,7 @@ if (!customElements.get('device-library')) {
                                 class="back-button" 
                                 id="back-btn">
                                 <ha-icon icon="mdi:chevron-left"></ha-icon>
-                                设备库
+                                ${getTranslationValue('device_library', this._hass?.language || 'en')}
                             </mwc-button>
                         </div>
                         <div class="header-right">
@@ -60,21 +61,21 @@ if (!customElements.get('device-library')) {
                                 class="import-button" 
                                 id="import-btn">
                                 <ha-icon icon="mdi:import"></ha-icon>
-                                HASS导入
+                                ${getTranslationValue('HASS_import', this._hass?.language || 'en')}
                             </mwc-button>
                         </div>
                     </div>
                     <div class="card-content">
                         <div class="device-table">
                             <div class="table-header">
-                                <div class="col-index">序号</div>
-                                <div class="col-name">设备名称</div>
-                                <div class="col-icon">图标</div>
-                                <div class="col-id">实体标识</div>
-                                <div class="col-apartment">户型图</div>
-                                <div class="col-room">所在房间</div>
-                                <div class="col-status">状态</div>
-                                <div class="col-actions">操作</div>
+                                <div class="col-index">${getTranslationValue('serial_number', this._hass?.language || 'en')}</div>
+                                <div class="col-name">${getTranslationValue('device_name', this._hass?.language || 'en')}</div>
+                                <div class="col-icon">${getTranslationValue('icon', this._hass?.language || 'en')}</div>
+                                <div class="col-id">${getTranslationValue('entity_id', this._hass?.language || 'en')}</div>
+                                <div class="col-apartment">${getTranslationValue('apartment', this._hass?.language || 'en')}</div>
+                                <div class="col-room">${getTranslationValue('room_location', this._hass?.language || 'en')}</div>
+                                <div class="col-status">${getTranslationValue('status', this._hass?.language || 'en')}</div>
+                                <div class="col-actions">${getTranslationValue('operation', this._hass?.language || 'en')}</div>
                             </div>
                             <div class="table-body" id="deviceGrid">
                                 <!-- 设备列表将在这里动态生成 -->
@@ -150,26 +151,34 @@ if (!customElements.get('device-library')) {
                 entity.entity_id.startsWith("sensor.airibes_radar_")
             );
             // 获取导入的设备
-            const importedDevices = await this._hass.callWS({
+            let importedDevices = await this._hass.callWS({
                 type: "airibes/get_imported_devices"
             });
-
+            importedDevices.devices.forEach(device => {
+                const entityId = device.entity_id;
+                if (!this._hass.states[entityId]) {
+                    device.state = 'unavailable';
+                }
+            });
+            console.log('importedDevices:--', importedDevices);
             // 合并设备列表
             this.deviceList = [
                 ...radarDevices.map(device => {
+                    console.log('device:--00', device);
                     const deviceId = device.entity_id.split('_').pop();
+                    console.log('deviceId:-11-', deviceId);
                     return {
                         ...device,
                         deviceType: 'radar',
-                        roomName: deviceRooms.get(deviceId.toUpperCase()) || '未添加',
-                        apartment: allApartmentDevices.has(deviceId.toUpperCase()) ? '已添加' : '未添加'
+                        roomName: deviceRooms.get(deviceId.toUpperCase()) || getTranslationValue('not_added', this._hass?.language || 'en'),
+                        apartment: allApartmentDevices.has(deviceId.toUpperCase()) ? getTranslationValue('added', this._hass?.language || 'en') : getTranslationValue('not_added', this._hass?.language || 'en')
                     };
                 }),
                 ...(importedDevices?.devices || []).map(device => ({
                     ...device,
                     deviceType: 'imported',
-                    roomName: deviceRooms.get(device.entity_id) || '未分配',
-                    apartment: allApartmentDevices.has(device.entity_id) ? '已添加' : '未添加'
+                    roomName: deviceRooms.get(device.entity_id) || getTranslationValue('not_assigned', this._hass?.language || 'en'),
+                    apartment: allApartmentDevices.has(device.entity_id) ? getTranslationValue('added', this._hass?.language || 'en') : getTranslationValue('not_added', this._hass?.language || 'en')
                 }))
             ];
 
@@ -189,13 +198,16 @@ if (!customElements.get('device-library')) {
             const isRadar = device.deviceType === 'radar';
             const deviceId = isRadar ? device.entity_id.split('_').pop() : device.entity_id;
             const state = this._hass.states[device.entity_id];
-            const isOnline = isRadar ? state?.state === "在线" : state?.state === "on";
-
+            const isOnline = isRadar ? state?.state === getTranslationValue('online', this._hass?.language || 'en') : state?.state === 'on';
+            let stateText = isOnline ? "在线" : "离线";
+            if (device.deviceType === 'imported' && device.state === 'unavailable') {
+                stateText = "不可用";
+            }
             // 根据设备类型设置不同的图标和名称
             let icon, name;
             if (isRadar) {
                 icon = "mdi:radar";
-                name = "人体存在传感器";
+                name = getTranslationValue('radar', this._hass?.language || 'en');
             } else {
                 icon = device.type === 'light' ? "mdi:lightbulb" : "mdi:air-conditioner";
                 name = device.name;
@@ -215,7 +227,7 @@ if (!customElements.get('device-library')) {
                     <div class="col-room">${device.roomName}</div>
                     <div class="col-status">
                         <span class="status-badge ${isOnline ? 'online' : 'offline'}">
-                            ${isOnline ? '在线' : '离线'}
+                            ${stateText}
                         </span>
                     </div>
                     <div class="col-actions">
@@ -248,8 +260,8 @@ if (!customElements.get('device-library')) {
             // 检查设备是否在线
             entityId = `sensor.airibes_radar_${deviceId.toLowerCase()}`;
             const entityState = this._hass.states[entityId];
-            if (!entityState || entityState.state !== "在线") {
-                this._showToast('设备离线,请确保设备在线后再删除');
+            if (!entityState || entityState.state !== getTranslationValue('online', this._hass?.language || 'en')) {
+                this._showToast(getTranslationValue('device_offline', this._hass?.language || 'en'));
                 return;
             }
         }
@@ -268,24 +280,25 @@ if (!customElements.get('device-library')) {
             <div class="dialog">
                 <div class="dialog-content">
                     <div class="dialog-header">
-                        <div class="dialog-title">确认删除</div>
+                        <div class="dialog-title">${getTranslationValue('confirm_delete', this._hass?.language || 'en')}</div>
                     </div>
                     <div class="dialog-message">
-                        确定删除以下设备？<br><br>
+                        ${getTranslationValue('confirm_delete_device', this._hass?.language || 'en')}
+                        <br><br>
                         <div class="device-info">
                             <div class="info-row">
-                                <span class="info-label">名称：</span>
-                                <span class="info-value">${deviceType === 'radar' ? '人体存在传感器' : device.name}</span>
+                                <span class="info-label">${getTranslationValue('name', this._hass?.language || 'en')}:</span>
+                                <span class="info-value">${deviceType === 'radar' ? getTranslationValue('radar', this._hass?.language || 'en') : device.name}</span>
                             </div>
                             <div class="info-row">
-                                <span class="info-label">实体标识：</span>
+                                <span class="info-label">${getTranslationValue('entity_id', this._hass?.language || 'en')}:</span>
                                 <span class="info-value">${device.entity_id}</span>
                             </div>
                         </div>
                     </div>
                     <div class="dialog-buttons">
-                        <mwc-button outlined class="cancel-button" id="cancelBtn">取消</mwc-button>
-                        <mwc-button raised class="confirm-button" id="confirmBtn">确定</mwc-button>
+                        <mwc-button outlined class="cancel-button" id="cancelBtn">${getTranslationValue('cancel', this._hass?.language || 'en')}</mwc-button>
+                        <mwc-button raised class="confirm-button" id="confirmBtn">${getTranslationValue('confirm', this._hass?.language || 'en')}</mwc-button>
                     </div>
                 </div>
             </div>
@@ -302,8 +315,8 @@ if (!customElements.get('device-library')) {
         confirmBtn.addEventListener('click', async () => {
             try {
                 // 检查设备是否已添加到户型中
-                if (device.apartment === '已添加') {
-                    this._showToast('请先从户型中删除该设备');
+                if (device.apartment === getTranslationValue('added', this._hass?.language || 'en')) {
+                    this._showToast(getTranslationValue('please_delete_from_apartment', this._hass?.language || 'en'));
                     dialog.remove();
                     return;
                 }
@@ -324,7 +337,7 @@ if (!customElements.get('device-library')) {
                 }
 
                 // 显示成功提示
-                this._showToast('删除成功');
+                this._showToast(getTranslationValue('delete_success', this._hass?.language || 'en'));
                 
                 // 关闭弹框
                 dialog.remove();
@@ -337,7 +350,7 @@ if (!customElements.get('device-library')) {
                 
             } catch (error) {
                 console.error('删除设备失败:', error);
-                this._showToast('删除失败');
+                this._showToast(getTranslationValue('delete_failed', this._hass?.language || 'en'));
             }
         });
 

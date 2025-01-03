@@ -30,7 +30,7 @@ export class ApartmentView extends HTMLElement {
     this.isDragging = false; // 是否正在拖动
     this.startRotation = 0; // 开始旋转的角度
     this.currentRotation = 0; // 当前旋
-    this.dragStartPos = null; // 拖动���������
+    this.dragStartPos = null;
     this.alignmentLines = {
       // 对齐线
       vertical: null,
@@ -60,9 +60,16 @@ export class ApartmentView extends HTMLElement {
     this.currentApartmentId = 1; // 当前选中的户型ID
     this.currentFloorId = null; // 当前关联的楼层ID
     this.personPositions = new Map(); // 存储每个设备的人员位置
+    this.senderError = null;
   }
 
   async connectedCallback() {
+    // 添加数据格式错误事件监听
+    this._unsubDataFormatError = this.hass.connection.subscribeEvents(
+      (event) => this._handleDataFormatError(event),
+      "airibes_apartment_data_format_error"
+    );
+
     // 发送户型视图可见事件
     if (this.hass) {
       await this.hass.callWS({
@@ -86,6 +93,12 @@ export class ApartmentView extends HTMLElement {
   }
 
   disconnectedCallback() {
+    // 清理事件监听
+    // if (this._unsubDataFormatError) {
+    //     this._unsubDataFormatError();
+    //     this._unsubDataFormatError = undefined;
+    // }
+
     // 发送户型视图不可见事件
     if (this.hass) {
       this.hass.callWS({
@@ -204,7 +217,7 @@ export class ApartmentView extends HTMLElement {
       });
     }
 
-    // 添�����设置按钮事件监听
+    // 添加设置按钮事件监听
     const settingsButton = this.shadowRoot.getElementById("settings-button");
     if (settingsButton) {
       settingsButton.addEventListener("click", () => {
@@ -306,7 +319,7 @@ export class ApartmentView extends HTMLElement {
             `.room[data-room-id="${room.id}"]`
           );
           if (roomElement) {
-            // 使用真实尺寸（厘米）计算新的显���尺寸
+            // 使用真实尺寸（厘米）计算新的显示尺寸
             const displayWidth = room.realWidth * this.scale;
             const displayHeight = room.realHeight * this.scale;
             const displayLeft = room.realLeft * this.scale;
@@ -356,7 +369,7 @@ export class ApartmentView extends HTMLElement {
               sizeLabel.textContent = `${area.realWidth}×${area.realHeight}`;
             }
 
-            // 更新区域���据
+            // 更新区域数据
             area.width = displayWidth;
             area.height = displayHeight;
             area.left = displayLeft;
@@ -394,7 +407,7 @@ export class ApartmentView extends HTMLElement {
     }
 
     // 更新贴纸
-    this.stickers.forEach(sticker => {
+    this.stickers.forEach((sticker) => {
       if (sticker.element) {
         // 使用真实尺寸和位置计算显示尺寸和位置
         const displayWidth = sticker.realWidth * this.scale;
@@ -413,7 +426,7 @@ export class ApartmentView extends HTMLElement {
           sizeLabel.textContent = `${sticker.realWidth}×${sticker.realHeight}`;
         }
 
-        // 更新显示尺��数据
+        // 更新显示尺寸数据
         sticker.width = displayWidth;
         sticker.height = displayHeight;
       }
@@ -448,7 +461,6 @@ export class ApartmentView extends HTMLElement {
         // 保存真实位置（厘米）
         room.realLeft = room.realLeft || room.left / this.scale;
         room.realTop = room.realTop || room.top / this.scale;
-        // ����显示位置
         room.left = displayLeft;
         room.top = displayTop;
         room.width = displayWidth;
@@ -480,10 +492,10 @@ export class ApartmentView extends HTMLElement {
           sizeLabel.textContent = `${area.realWidth}×${area.realHeight}`;
         }
 
-        // ���存���实位置（厘米）
+        // 保存真实位置（厘米）
         area.realLeft = area.realLeft || area.left / this.scale;
         area.realTop = area.realTop || area.top / this.scale;
-        // 更新显示位
+        // 更新显示位置
         area.left = displayLeft;
         area.top = displayTop;
         area.width = displayWidth;
@@ -523,14 +535,14 @@ export class ApartmentView extends HTMLElement {
     const scale = size / this.canvasSize;
 
     // 清空标尺
-    ctx.fillStyle = "#f0f0f0";
+    ctx.fillStyle = "#4E6E8C";
     ctx.fillRect(0, 0, ruler.width, ruler.height);
 
     ctx.beginPath();
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = "#fff";
     ctx.font = "10px Arial";
     ctx.textAlign = "center";
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = "#fff";
 
     // 绘制大刻度和数字（每100cm，显示为1-20米）
     for (let i = 0; i <= this.canvasSize; i += 100) {
@@ -560,14 +572,14 @@ export class ApartmentView extends HTMLElement {
     const scale = size / this.canvasSize;
 
     // 清空标尺
-    ctx.fillStyle = "#f0f0f0";
+    ctx.fillStyle = "#4E6E8C";
     ctx.fillRect(0, 0, ruler.width, ruler.height);
 
     ctx.beginPath();
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = "#fff";
     ctx.font = "10px Arial";
     ctx.textAlign = "right";
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = "#fff";
 
     // 绘制大刻度和数字（每100cm，显示为1-20米）
     for (let i = 0; i <= this.canvasSize; i += 100) {
@@ -604,9 +616,7 @@ export class ApartmentView extends HTMLElement {
   }
 
   switchMenu(menuName) {
-    // 更新��活状态
     this.activeMenu = menuName;
-    console.log("当前激活菜单:", this.activeMenu);
     // 更新菜单样式
     const menuItems = this.shadowRoot.querySelectorAll(".menu-item");
     menuItems.forEach((item) => {
@@ -688,8 +698,10 @@ export class ApartmentView extends HTMLElement {
                                 icon = "mdi:help-circle"; // 默认图标
                             }
 
-                              return `
-                                <div class="tool-item device-item ${isPlaced ? "disabled" : ""}" 
+                            return `
+                                <div class="tool-item device-item ${
+                                  isPlaced ? "disabled" : ""
+                                }" 
                                     data-device-id="${device.device_id}">
                                     <ha-icon icon="${icon}" style="${iconStyle}"></ha-icon>
                                     <span>${device.displayName}</span>
@@ -715,7 +727,9 @@ export class ApartmentView extends HTMLElement {
                     </div>
                 `;
       default:
-        return '<div class="empty-content">暂无内容</div>';
+        return `<div class="empty-content">${this.translate(
+          "empty_content"
+        )}</div>`;
     }
   }
 
@@ -753,11 +767,13 @@ export class ApartmentView extends HTMLElement {
 
     dialog.innerHTML = `
         <div class="dialog">
-            <div class="dialog-title">设置户型空间</div>
+            <div class="dialog-title">${this.translate(
+              "apartment_settings"
+            )}</div>
             <div class="dialog-content">
                 <div class="form-field">
                     <div class="form-row apartment-select-row">
-                        <label>选择户型</label>
+                        <label>${this.translate("select_apartment")}</label>
                         <div class="apartment-select-container">
                             <select id="apartment-select">
                                 ${
@@ -769,12 +785,19 @@ export class ApartmentView extends HTMLElement {
                                           ? "selected"
                                           : ""
                                       }>
-                                        ${apt.name || `户型${index + 1}`}
+                                        ${
+                                          apt.name ||
+                                          `${this.translate("apartment")}${
+                                            index + 1
+                                          }`
+                                        }
                                     </option>
                                 `
                                     )
                                     .join("") ||
-                                  '<option value="1">户型一</option>'
+                                  `<option value="1">${this.translate(
+                                    "apartment_one"
+                                  )}</option>`
                                 }
                             </select>
                             <mwc-button class="add-apartment-button" id="add-apartment-button">
@@ -785,12 +808,14 @@ export class ApartmentView extends HTMLElement {
                 </div>
                 <div class="form-field">
                     <div class="form-row">
-                        <label>空间名称</label>
-                        <input type="text" id="space-name" placeholder="我的户型方案">
+                        <label>${this.translate("apartment_name")}</label>
+                        <input type="text" id="space-name" placeholder=${this.translate(
+                          "input_apartment_name"
+                        )}>
                     </div>
                 </div>
                 <div class="form-field">
-                    <label>选择可编辑空间区域大小</label>
+                    <label>${this.translate("select_space_size")}</label>
                     <div class="radio-group">
                         <label class="radio-label">
                             <input type="radio" name="space-size" value="5x5" ${
@@ -814,7 +839,7 @@ export class ApartmentView extends HTMLElement {
                             <input type="radio" name="space-size" value="custom" ${
                               currentSize === "custom" ? "checked" : ""
                             }>
-                            自定义
+                            ${this.translate("custom_size")}
                         </label>
                     </div>
                 </div>
@@ -823,30 +848,30 @@ export class ApartmentView extends HTMLElement {
                 };">
                     <div class="form-field size-input">
                         <label>W</label>
-                        <input type="number" id="custom-size" placeholder="输入尺寸" value="${
-                          this.canvasSize / 100
-                        }" min="5">
+                        <input type="number" id="custom-size" placeholder=${this.translate(
+                          "input_space_size"
+                        )} value="${this.canvasSize / 100}" min="5">
                         <span>m</span>
                     </div>
                 </div>
                 <div class="form-field">
                     <div class="form-row">
-                        <label>户型图风格</label>
+                        <label>${this.translate("apartment_style")}</label>
                         <select id="style-select">
-                            <option value="default">默认风格</option>
+                            <option value="default">${this.translate(
+                              "default_style"
+                            )}</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-field">
-                    <label class="switch-label">
-                        <span>辅助说明</span>
-                        <ha-switch id="help-switch"></ha-switch>
-                    </label>
-                </div>
             </div>
             <div class="dialog-buttons">
-                <mwc-button outlined id="cancel-button">取消</mwc-button>
-                <mwc-button raised id="confirm-button">确定</mwc-button>
+                <mwc-button outlined id="cancel-button">${this.translate(
+                  "cancel"
+                )}</mwc-button>
+                <mwc-button raised id="confirm-button">${this.translate(
+                  "confirm"
+                )}</mwc-button>
             </div>
         </div>
     `;
@@ -857,7 +882,6 @@ export class ApartmentView extends HTMLElement {
     const cancelBtn = dialog.querySelector("#cancel-button");
     const confirmBtn = dialog.querySelector("#confirm-button");
     const customSizeFields = dialog.querySelector(".custom-size-fields");
-    const helpSwitch = dialog.querySelector("#help-switch");
     const spaceNameInput = dialog.querySelector("#space-name");
 
     // 添加自定义尺寸显示/隐藏处理
@@ -920,10 +944,6 @@ export class ApartmentView extends HTMLElement {
         this.updateCanvasSize();
       }
 
-      // 更新辅助说明设��
-      const showHelp = helpSwitch.checked;
-      // TODO: 处理辅助说明设置
-
       // 更新空间名称
       const spaceName = spaceNameInput.value.trim();
       if (spaceName) {
@@ -931,27 +951,10 @@ export class ApartmentView extends HTMLElement {
       }
 
       dialog.remove();
-      this.showToast("设置已保存");
+      this.showToast(this.translate("settings_saved"));
     });
 
     this.shadowRoot.appendChild(dialog);
-  }
-
-  // 添加更新户型楼层关联的方法
-  async updateApartmentFloor(apartmentId, floorId) {
-    try {
-      await this.hass.callWS({
-        type: "airibes/update_apartment_floor",
-        apartment_id: apartmentId,
-        floor_id: floorId,
-      });
-
-      this.currentFloorId = floorId;
-      this.showToast("更新楼层关联成功");
-    } catch (error) {
-      console.error("更新楼层关联失败:", error);
-      this.showToast("更新楼层关联失败");
-    }
   }
 
   // 添加新增户型对话框
@@ -960,16 +963,22 @@ export class ApartmentView extends HTMLElement {
     dialog.className = "dialog-overlay";
     dialog.innerHTML = `
         <div class="dialog">
-            <div class="dialog-title">新增户型</div>
+            <div class="dialog-title">${this.translate("add_apartment")}</div>
             <div class="dialog-content">
                 <div class="form-field">
-                    <label>户型名称</label>
-                    <input type="text" id="new-apartment-name" placeholder="输入户型名称">
+                    <label>${this.translate("apartment_name")}</label>
+                    <input type="text" id="new-apartment-name" placeholder=${this.translate(
+                      "input_apartment_name"
+                    )}>
                 </div>
             </div>
             <div class="dialog-buttons">
-                <mwc-button outlined id="cancel-button">取消</mwc-button>
-                <mwc-button raised id="confirm-button">确定</mwc-button>
+                <mwc-button outlined id="cancel-button">${this.translate(
+                  "cancel"
+                )}</mwc-button>
+                <mwc-button raised id="confirm-button">${this.translate(
+                  "confirm"
+                )}</mwc-button>
             </div>
         </div>
     `;
@@ -1071,7 +1080,6 @@ export class ApartmentView extends HTMLElement {
       // 获取所有工具项
       const allToolItems = this.shadowRoot.querySelectorAll(".tool-item");
 
-      // 添加长按���态跟踪
       this.isLongPress = false;
       this.pressStartTime = 0;
       this.pressedElement = null;
@@ -1080,7 +1088,7 @@ export class ApartmentView extends HTMLElement {
       allToolItems.forEach((item) => {
         // 添加鼠标按下事件
         item.addEventListener("mousedown", (e) => {
-          // 如果是设备项且未被禁用，则处理拖��
+          // 如果是设备项且未被禁用，则处理拖动
           if (
             item.classList.contains("device-item") &&
             !item.classList.contains("disabled")
@@ -1172,12 +1180,12 @@ export class ApartmentView extends HTMLElement {
 
           e.preventDefault();
         } else if (this.selectedTool === "regular-room") {
-          // 如果选中了规则房间工具，开始��制
+          // 如果选中了规则房间工具，开始绘制
           this.handleDrawingStart(e);
         }
       });
 
-      // 修改画布的mouseup事件��理
+      // 修改画布的mouseup事件处理
       drawingArea.addEventListener("mouseup", (e) => {
         // 清除长按计时器
         if (this.longPressTimer) {
@@ -1244,7 +1252,6 @@ export class ApartmentView extends HTMLElement {
 
         // 点击空白区域时取消选中
         if (this.selectedElement) {
-          // 在取选����前更新元素的真实位置
           if (this.selectedElement.classList.contains("room")) {
             const roomId = parseInt(this.selectedElement.dataset.roomId);
             const room = this.rooms.find((r) => r.id === roomId);
@@ -1294,7 +1301,7 @@ export class ApartmentView extends HTMLElement {
         }
       });
 
-      // 添加贴纸拖动功���
+      // 添加贴纸拖动功能
       const stickerItems = this.shadowRoot.querySelectorAll(".sticker-item");
       stickerItems.forEach((item) => {
         item.addEventListener("mousedown", (e) => {
@@ -1315,7 +1322,7 @@ export class ApartmentView extends HTMLElement {
       if (this.selectedTool === "regular-room") {
         drawingArea.style.cursor = "crosshair";
       } else if (this.selectedElement) {
-        drawingArea.style.cursor = "move"; 
+        drawingArea.style.cursor = "move";
       } else {
         drawingArea.style.cursor = "default";
       }
@@ -1336,13 +1343,13 @@ export class ApartmentView extends HTMLElement {
     // 清除所有现有的预览框
     this.clearAllPreviewBoxes();
 
-    // 创���预览框
+    // 创建预览框
     const drawingArea = this.shadowRoot.querySelector(".drawing-area");
     this.previewBox = document.createElement("div");
     this.previewBox.className = "preview-box";
     drawingArea.appendChild(this.previewBox);
 
-    // 设置预览框的初始���置
+    // 设置预览框的初始位置
     this.previewBox.style.cssText = `
         position: absolute;
         left: ${this.startPoint.x}px;
@@ -1385,7 +1392,7 @@ export class ApartmentView extends HTMLElement {
     // 检查最小尺（50cm）
     const isInvalid = realWidth < 100 || realHeight < 100;
 
-    // 更新���览框位置、���寸和样式
+    // 更新览框位置、尺寸和样式
     this.previewBox.style.cssText = `
         position: absolute;
         left: ${left}px;
@@ -1405,7 +1412,7 @@ export class ApartmentView extends HTMLElement {
         display: block;
     `;
 
-    // 更新��寸标签，使用更紧凑的布局
+    // 更新尺寸标签，使用更紧凑的布局
     this.previewBox.innerHTML = `
         <div class="size-label width-label">${realWidth}cm</div>
         <div class="size-label height-label">${realHeight}cm</div>
@@ -1479,14 +1486,14 @@ export class ApartmentView extends HTMLElement {
     )
       return;
 
-    // 获取可用��房间ID
+    // 获取可用房间ID
     const roomId = this.getNextRoomId();
 
     // 创建房间元素
     const room = {
       id: roomId,
       type: "regular",
-      name: `房间${roomId}`,
+      name: `${this.translate("room")}${roomId}`,
       left: left,
       top: top,
       width: width,
@@ -1542,16 +1549,15 @@ export class ApartmentView extends HTMLElement {
 
   // 修改 checkRoomOverlap 方法
   checkRoomOverlap(newRoom) {
-    // 暂时返回 false，����查重叠
     return false;
 
     /* 注释掉原有的重叠检查代码
     return this.rooms.some(room => {
-        // 获取房间的当���DOM元素位置
+        // 获取房间的当前DOM元素位置
         const roomElement = this.shadowRoot.querySelector(`.room[data-room-id="${room.id}"]`);
         if (!roomElement) return false;
 
-        // 使用真实位置（���米）计算显���位置
+        // 使用真实位置计算显示位置
         const currentLeft = room.realLeft * this.scale;
         const currentTop = room.realTop * this.scale;
         const currentWidth = room.realWidth * this.scale;
@@ -1575,7 +1581,6 @@ export class ApartmentView extends HTMLElement {
 
   // 选中元素
   selectElement(element) {
-    // 取��之前的选中
     if (this.selectedElement) {
       this.selectedElement.classList.remove("selected");
       this.removeEditControls();
@@ -1631,9 +1636,12 @@ export class ApartmentView extends HTMLElement {
     const resizeBtn = controls.querySelector(".resize-button");
 
     // 根据元素类型决定是否显示旋转按钮
-    if (type === "room" || type === "area" || 
-        (type === "sticker" && element.dataset.stickerType === "door")) {
-        rotateBtn.style.display = "none"; // 房间、区域和门不显示旋转按钮
+    if (
+      type === "room" ||
+      type === "area" ||
+      (type === "sticker" && element.dataset.stickerType === "door")
+    ) {
+      rotateBtn.style.display = "none"; // 房间、区域和门不显示旋转按钮
     } else {
       rotateBtn.style.display = "flex"; // 贴纸和设备显示旋转按钮
       // 旋转按钮事件
@@ -1641,7 +1649,7 @@ export class ApartmentView extends HTMLElement {
         e.stopPropagation();
         this.isRotating = true;
 
-        // 获取元素中��点
+        // 获取元素中心点
         const rect = element.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -1677,6 +1685,14 @@ export class ApartmentView extends HTMLElement {
       });
     }
 
+    if (type === "device") {
+      resizeBtn.style.display = "none";
+      editBtn.style.display = "none";
+      if (element.dataset.deviceType === "radar") {
+        editBtn.style.display = "flex";
+      }
+    }
+
     // 添加全局鼠标移动事件处理
     document.addEventListener("mousemove", (e) => {
       if (this.isRotating && this.selectedElement) {
@@ -1686,15 +1702,15 @@ export class ApartmentView extends HTMLElement {
 
         // 计算当前角度（相对于中心点）
         const currentAngle = Math.atan2(
-            e.clientY - centerY,
-            e.clientX - centerX
+          e.clientY - centerY,
+          e.clientX - centerX
         );
-        
+
         // 计算旋转角度差值
         let rotation = (currentAngle - this.startRotation) * (180 / Math.PI);
         // 将负角度转换为正角度 (例如 -90 变为 270)
         if (rotation < 0) {
-            rotation += 360;
+          rotation += 360;
         }
 
         // 更新元素的旋转
@@ -1702,20 +1718,20 @@ export class ApartmentView extends HTMLElement {
 
         // 更新设备或贴纸的旋转属性
         if (this.selectedElement.classList.contains("device-element")) {
-            const deviceId = this.selectedElement.dataset.deviceId;
-            const device = this.placedDevices.find((d) => d.id === deviceId);
-            if (device) {
-                device.rotation = rotation;
-            }
+          const deviceId = this.selectedElement.dataset.deviceId;
+          const device = this.placedDevices.find((d) => d.id === deviceId);
+          if (device) {
+            device.rotation = rotation;
+          }
         } else if (this.selectedElement.classList.contains("sticker-element")) {
-            const stickerId = parseInt(this.selectedElement.dataset.stickerId);
-            const sticker = this.stickers.find((s) => s.id === stickerId);
-            if (sticker) {
-                sticker.rotation = rotation;
-            }
+          const stickerId = parseInt(this.selectedElement.dataset.stickerId);
+          const sticker = this.stickers.find((s) => s.id === stickerId);
+          if (sticker) {
+            sticker.rotation = rotation;
+          }
         }
-    }
-  });
+      }
+    });
 
     // 编辑按钮事件
     editBtn.addEventListener("click", (e) => {
@@ -1779,16 +1795,16 @@ export class ApartmentView extends HTMLElement {
     dialog.className = "dialog-overlay";
     dialog.innerHTML = `
         <div class="dialog">
-            <div class="dialog-title">编辑房间</div>
+            <div class="dialog-title">${this.translate("edit_room")}</div>
             <div class="dialog-content">
                 <div class="form-field">
-                    <label>房间名称</label>
+                    <label>${this.translate("room_name")}</label>
                     <input type="text" id="room-name" value="${
                       room ? room.name : ""
-                    }" placeholder="输入房间名称">
+                    }" placeholder="${this.translate("input_room_name")}">
                 </div>
                 <div class="form-field">
-                    <label>房间颜色</label>
+                    <label>${this.translate("room_color")}</label>
                     <div class="color-field">
                         <input type="color" id="room-color" class="color-input" value="${currentColor}">
                         <div class="color-preview" style="background-color: ${currentColor}"></div>
@@ -1797,8 +1813,12 @@ export class ApartmentView extends HTMLElement {
                 </div>
             </div>
             <div class="dialog-buttons">
-                <mwc-button outlined id="cancel-button">取消</mwc-button>
-                <mwc-button raised id="confirm-button">确定</mwc-button>
+                <mwc-button outlined id="cancel-button">${this.translate(
+                  "cancel"
+                )}</mwc-button>
+                <mwc-button raised id="confirm-button">${this.translate(
+                  "confirm"
+                )}</mwc-button>
             </div>
         </div>
     `;
@@ -1814,7 +1834,7 @@ export class ApartmentView extends HTMLElement {
       colorValue.textContent = color;
     });
 
-    // 添加��件处理
+    // 添加事件处理
     const cancelBtn = dialog.querySelector("#cancel-button");
     const confirmBtn = dialog.querySelector("#confirm-button");
     const nameInput = dialog.querySelector("#room-name");
@@ -1868,13 +1888,19 @@ export class ApartmentView extends HTMLElement {
     dialog.className = "dialog-overlay";
     dialog.innerHTML = `
             <div class="dialog">
-                <div class="dialog-title">${this.translate("confirm_delete")}</div>
+                <div class="dialog-title">${this.translate(
+                  "confirm_delete"
+                )}</div>
                 <div class="dialog-content">
                     <p>${delet_tip}</p>
                 </div>
                 <div class="dialog-buttons">
-                    <mwc-button outlined id="cancel-button">取消</mwc-button>
-                    <mwc-button raised id="confirm-button">确定</mwc-button>
+                    <mwc-button outlined id="cancel-button">${this.translate(
+                      "cancel"
+                    )}</mwc-button>
+                    <mwc-button raised id="confirm-button">${this.translate(
+                      "confirm"
+                    )}</mwc-button>
                 </div>
             </div>
         `;
@@ -2035,160 +2061,183 @@ export class ApartmentView extends HTMLElement {
   // 处理全局鼠标移动
   handleGlobalMouseMove(e) {
     if (this.isDragging && this.selectedElement && this.dragStartPos) {
-        const dx = e.clientX - this.dragStartPos.x;
-        const dy = e.clientY - this.dragStartPos.y;
+      const dx = e.clientX - this.dragStartPos.x;
+      const dy = e.clientY - this.dragStartPos.y;
 
-        let newLeft = this.dragStartPos.left + dx;
-        let newTop = this.dragStartPos.top + dy;
+      let newLeft = this.dragStartPos.left + dx;
+      let newTop = this.dragStartPos.top + dy;
 
-        // 获取画布和元素的尺寸
-        const drawingArea = this.shadowRoot.querySelector(".drawing-area");
-        const elementWidth = this.selectedElement.offsetWidth;
-        const elementHeight = this.selectedElement.offsetHeight;
-        const drawingAreaWidth = drawingArea.offsetWidth;
-        const drawingAreaHeight = drawingArea.offsetHeight;
+      // 获取画布和元素的尺寸
+      const drawingArea = this.shadowRoot.querySelector(".drawing-area");
+      const elementWidth = this.selectedElement.offsetWidth;
+      const elementHeight = this.selectedElement.offsetHeight;
+      const drawingAreaWidth = drawingArea.offsetWidth;
+      const drawingAreaHeight = drawingArea.offsetHeight;
 
-        // 限制元素在画布内
-        newLeft = Math.max(0, Math.min(newLeft, drawingAreaWidth - elementWidth));
-        newTop = Math.max(0, Math.min(newTop, drawingAreaHeight - elementHeight));
+      // 限制元素在画布内
+      newLeft = Math.max(0, Math.min(newLeft, drawingAreaWidth - elementWidth));
+      newTop = Math.max(0, Math.min(newTop, drawingAreaHeight - elementHeight));
 
-        // 如果拖动的是区域元素
-        if (this.selectedElement.classList.contains('area')) {
-            const areaId = parseInt(this.selectedElement.dataset.areaId);
-            const area = this.areas.find(a => a.id === areaId);
-            if (area) {
-                // 检查新位置所在的房间
-                const realX = newLeft / this.scale;
-                const realY = newTop / this.scale;
-                const targetRoom = this.findRoomAtPoint(realX, realY);
+      // 如果拖动的是区域元素
+      if (this.selectedElement.classList.contains("area")) {
+        const areaId = parseInt(this.selectedElement.dataset.areaId);
+        const area = this.areas.find((a) => a.id === areaId);
+        if (area) {
+          // 检查新位置所在的房间
+          const realX = newLeft / this.scale;
+          const realY = newTop / this.scale;
+          const targetRoom = this.findRoomAtPoint(realX, realY);
 
-                // 创建临时区域对象用于重叠检测
-                const tempArea = {
-                    ...area,
-                    left: newLeft,
-                    top: newTop
-                };
+          // 创建临时区域对象用于重叠检测
+          const tempArea = {
+            ...area,
+            left: newLeft,
+            top: newTop,
+          };
 
-                // 检查新位置是否与其他区域重叠
-                const isOverlapping = this.checkAreaOverlap(tempArea);
-                
-                // 如果是监测区域且目标房间存在，检查房间内的监测区域数量
-                let exceedMaxAreas = false;
-                if (area.type === "monitor-area" && targetRoom) {
-                    // 获取目标房间内的监测区域数量（不包括当前拖动的区域）
-                    const monitorAreasInRoom = this.areas.filter(a => {
-                        if (a.id === areaId) return false; // 排除当前区域
-                        const areaX = a.left / this.scale;
-                        const areaY = a.top / this.scale;
-                        return a.type === "monitor-area" && 
-                               a.isValid && 
-                               this.isPointInRoom({x: areaX, y: areaY}, targetRoom);
-                    }).length;
+          // 如果是监测区域且目标房间存在，检查房间内的监测区域数量
+          let exceedMaxAreas = false;
+          if (area.type === "monitor-area" && targetRoom) {
+            // 获取目标房间内的监测区域数量（不包括当前拖动的区域）
+            const monitorAreasInRoom = this.areas.filter((a) => {
+              if (a.id === areaId) return false; // 排除当前区域
+              const areaX = a.left / this.scale;
+              const areaY = a.top / this.scale;
+              return (
+                a.type === "monitor-area" &&
+                a.isValid &&
+                this.isPointInRoom({ x: areaX, y: areaY }, targetRoom)
+              );
+            }).length;
 
-                    // 如果房间内已有30个监测区域，设置标志并显示提示
-                    if (monitorAreasInRoom >= 30) {
-                        exceedMaxAreas = true;
-                        this.showToast(this.translate("max_monitor_areas"));
-                    }
-                }
-                
-                // 更新区域状态和样式
-                area.isValid = !isOverlapping && !exceedMaxAreas;
-                
-                if (!area.isValid) {
-                    // 重叠或超出数量限制时显示红色虚线边框
-                    this.selectedElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
-                    this.selectedElement.style.border = "2px dashed #FF0000";
-                    
-                    // 添加或更新警告提示
-                    let warningLabel = this.selectedElement.querySelector('.area-warning');
-                    if (!warningLabel) {
-                        warningLabel = document.createElement('div');
-                        warningLabel.className = 'area-warning';
-                        this.selectedElement.appendChild(warningLabel);
-                    }
-                    warningLabel.textContent = exceedMaxAreas ? 
-                        this.translate("max_monitor_areas") : 
-                        this.translate("area_overlap");
-                } else {
-                    // 不重叠时恢复正常样式
-                    this.selectedElement.style.backgroundColor = `${area.color}33`;
-                    this.selectedElement.style.border = `2px solid ${area.color}`;
-                    
-                    // 移除警告提示
-                    const warningLabel = this.selectedElement.querySelector('.area-warning');
-                    if (warningLabel) {
-                        warningLabel.remove();
-                    }
-                }
+            // 如果房间内已有30个监测区域，设置标志并显示提示
+            if (monitorAreasInRoom >= 30) {
+              exceedMaxAreas = true;
+              this.showToast(this.translate("max_monitor_areas"));
             }
-        } else if (this.selectedElement.classList.contains("sticker-element") &&
-                   this.selectedElement.dataset.stickerType === "door") {
-            // 如果是门贴纸，检查是否靠近房间墙
-            const doorRect = {
-                left: newLeft,
-                top: newTop,
-                width: this.selectedElement.offsetWidth,
-                height: this.selectedElement.offsetHeight,
-            };
+          }
+          
+          // 检查新位置是否与其他区域重叠
+          let isOverlapping = this.checkAreaOverlap(tempArea);
+          if (area.type === "interference-area") {
+            isOverlapping = this.checkInterferenceSourceAndDoorOverlap(area);
+          }
+          // 更新区域状态和样式
+          area.isValid = !isOverlapping && !exceedMaxAreas;
 
-            // 检查所有房间的墙
-            const nearestWall = this.findNearestWall(doorRect);
-            if (nearestWall) {
-                // 应用对齐位置
-                const alignedPosition = this.alignDoorToWall(doorRect, nearestWall);
-                this.selectedElement.style.left = `${alignedPosition.left}px`;
-                this.selectedElement.style.top = `${alignedPosition.top}px`;
-                this.selectedElement.style.transform = `rotate(${alignedPosition.rotation}deg)`;
+          if (!area.isValid) {
+            // 重叠或超出数量限制时显示红色虚线边框
+            this.selectedElement.style.backgroundColor =
+              "rgba(255, 0, 0, 0.1)";
+            this.selectedElement.style.border = "2px dashed #FF0000";
 
-                // 更新门的有效性状态
-                const stickerId = parseInt(this.selectedElement.dataset.stickerId);
-                const sticker = this.stickers.find(s => s.id === stickerId);
-                if (sticker) {
-                    sticker.isValid = alignedPosition.isValid;
-                    
-                    // 根据有效性更新样式
-                    if (!alignedPosition.isValid) {
-                        this.selectedElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
-                        this.selectedElement.style.border = "2px dashed #FF0000";
-                        this.showToast(this.translate("max_doors_in_room"));
-                    } else {
-                        this.selectedElement.style.backgroundColor = "";
-                        this.selectedElement.style.border = "";
-                    }
-                }
-            } else {
-                // 不在任何墙附近时，恢复有效状态
-                const stickerId = parseInt(this.selectedElement.dataset.stickerId);
-                const sticker = this.stickers.find(s => s.id === stickerId);
-                if (sticker) {
-                    sticker.isValid = true;
-                    // 恢复正常样式
-                    this.selectedElement.style.backgroundColor = "";
-                    this.selectedElement.style.border = "";
-                }
+            // 添加或更新警告提示
+            let warningLabel =
+              this.selectedElement.querySelector(".area-warning");
+            if (!warningLabel) {
+              warningLabel = document.createElement("div");
+              warningLabel.className = "area-warning";
+              this.selectedElement.appendChild(warningLabel);
             }
+            warningLabel.textContent = exceedMaxAreas
+              ? this.translate("max_monitor_areas")
+              : this.translate("area_overlap");
+          } else {
+            // 不重叠时恢复正常样式
+            this.selectedElement.style.backgroundColor = `${area.color}33`;
+            this.selectedElement.style.border = `2px solid ${area.color}`;
+
+            // 移除警告提示
+            const warningLabel =
+              this.selectedElement.querySelector(".area-warning");
+            if (warningLabel) {
+              warningLabel.remove();
+            }
+          }
+          // 更新真实位置（厘米）和显示位置
+          area.realLeft = realX;
+          area.realTop = realY;
+          area.left = newLeft;
+          area.top = newTop;
+
+          // 保存到DOM元素的dataset中
+          this.selectedElement.dataset.realLeft = area.realLeft;
+          this.selectedElement.dataset.realTop = area.realTop;
         }
+      } else if (
+        this.selectedElement.classList.contains("sticker-element") &&
+        this.selectedElement.dataset.stickerType === "door"
+      ) {
+        // 如果是门贴纸，检查是否靠近房间墙
+        const doorRect = {
+          left: newLeft,
+          top: newTop,
+          width: this.selectedElement.offsetWidth,
+          height: this.selectedElement.offsetHeight,
+        };
 
-        // 获取对齐位置
-        const { alignX, alignY } = this.updateAlignmentLines(
-            this.selectedElement,
-            newLeft,
-            newTop
-        );
+        // 检查所有房间的墙
+        const nearestWall = this.findNearestWall(doorRect);
+        if (nearestWall) {
+          // 应用对齐位置
+          const alignedPosition = this.alignDoorToWall(doorRect, nearestWall);
+          this.selectedElement.style.left = `${alignedPosition.left}px`;
+          this.selectedElement.style.top = `${alignedPosition.top}px`;
+          this.selectedElement.style.transform = `rotate(${alignedPosition.rotation}deg)`;
 
-        // 应用对齐后的位置，同时确保不超出画布
-        const finalLeft = alignX !== null ? 
-            Math.max(0, Math.min(alignX, drawingAreaWidth - elementWidth)) : 
-            newLeft;
-        const finalTop = alignY !== null ? 
-            Math.max(0, Math.min(alignY, drawingAreaHeight - elementHeight)) : 
-            newTop;
+          // 更新门的有效性状态
+          const stickerId = parseInt(this.selectedElement.dataset.stickerId);
+          const sticker = this.stickers.find((s) => s.id === stickerId);
+          if (sticker) {
+            const isOverlapping = this.checkDoorOverlap(doorRect, alignedPosition.rotation, sticker.id);
+            console.log("门是否重叠99999=======",isOverlapping);
+            sticker.isValid = alignedPosition.isValid && !isOverlapping;
 
-        this.selectedElement.style.left = `${finalLeft}px`;
-        this.selectedElement.style.top = `${finalTop}px`;
+            // 根据有效性更新样式
+            if (!alignedPosition.isValid || isOverlapping) {
+              this.selectedElement.style.backgroundColor =
+                "rgba(255, 0, 0, 0.1)";
+              this.selectedElement.style.border = "2px dashed #FF0000";
+              this.showToast(this.translate("max_doors_in_room"));
+            } else {
+              this.selectedElement.style.backgroundColor = "";
+              this.selectedElement.style.border = "";
+            }
+          }
+        } else {
+          // 不在任何墙附近时，恢复有效状态
+          const stickerId = parseInt(this.selectedElement.dataset.stickerId);
+          const sticker = this.stickers.find((s) => s.id === stickerId);
+          if (sticker) {
+            sticker.isValid = true;
+            // 恢复正常样式
+            this.selectedElement.style.backgroundColor = "";
+            this.selectedElement.style.border = "";
+          }
+        }
+      }
 
-        e.preventDefault();
+      // 获取对齐位置
+      const { alignX, alignY } = this.updateAlignmentLines(
+        this.selectedElement,
+        newLeft,
+        newTop
+      );
+
+      // 应用对齐后的位置，同时确保不超出画布
+      const finalLeft =
+        alignX !== null
+          ? Math.max(0, Math.min(alignX, drawingAreaWidth - elementWidth))
+          : newLeft;
+      const finalTop =
+        alignY !== null
+          ? Math.max(0, Math.min(alignY, drawingAreaHeight - elementHeight))
+          : newTop;
+
+      this.selectedElement.style.left = `${finalLeft}px`;
+      this.selectedElement.style.top = `${finalTop}px`;
+
+      e.preventDefault();
     } else if (this.isRotating && this.selectedElement) {
       const currentAngle = this.getRotationAngle(this.selectedElement, e);
       const rotation = (currentAngle - this.startRotation) * (180 / Math.PI);
@@ -2233,7 +2282,7 @@ export class ApartmentView extends HTMLElement {
 
         // 更新贴纸数据
         const stickerId = parseInt(this.selectedElement.dataset.stickerId);
-        const sticker = this.stickers.find(s => s.id === stickerId);
+        const sticker = this.stickers.find((s) => s.id === stickerId);
         if (sticker) {
           sticker.width = realWidth;
           sticker.height = realHeight;
@@ -2407,7 +2456,6 @@ export class ApartmentView extends HTMLElement {
 
     // 结束缩放
     if (this.isResizing && this.selectedElement) {
-
       this.isResizing = false;
       this.resizeStartPos = null;
     }
@@ -2442,7 +2490,7 @@ export class ApartmentView extends HTMLElement {
     const areaElement = document.createElement("div");
     areaElement.className = "area-preview";
 
-    // 设置区样式
+    // ���置区样式
     const isMonitor = type === "monitor-area";
     const backgroundColor = isMonitor
       ? "rgba(0, 255, 0, 0.2)"
@@ -2462,7 +2510,11 @@ export class ApartmentView extends HTMLElement {
 
     // 添加尺寸标签
     areaElement.innerHTML = `
-            <div class="area-name">${isMonitor ? this.translate("monitoring_area") : this.translate("interference_source")}</div>
+            <div class="area-name">${
+              isMonitor
+                ? this.translate("monitoring_area")
+                : this.translate("interference_source")
+            }</div>
             <div class="area-size">100x100</div>
         `;
 
@@ -2477,7 +2529,6 @@ export class ApartmentView extends HTMLElement {
 
     this.isDraggingArea = true;
 
-    // 添加鼠移动和松开事件
     document.addEventListener("mousemove", this.handleAreaDrag.bind(this));
     document.addEventListener("mouseup", this.handleAreaDrop.bind(this));
   }
@@ -2496,37 +2547,41 @@ export class ApartmentView extends HTMLElement {
     const drawingArea = this.shadowRoot.querySelector(".drawing-area");
     const rect = drawingArea.getBoundingClientRect();
 
-    // 检查是否在画布范围内
-    if (e.clientX >= rect.left && e.clientX <= rect.right &&
-        e.clientY >= rect.top && e.clientY <= rect.bottom) {
-        
-        // 计算相对于画布的位置（考虑区域大小，使其居中放置）
-        const x = e.clientX - rect.left - (this.draggedArea.size / 2);
-        const y = e.clientY - rect.top - (this.draggedArea.size / 2);
+    // ���查是否在画布范围内
+    if (
+      e.clientX >= rect.left &&
+      e.clientX <= rect.right &&
+      e.clientY >= rect.top &&
+      e.clientY <= rect.bottom
+    ) {
+      // 计算相对于画布的位置（考虑区域大小，使其居中放置）
+      const x = e.clientX - rect.left - this.draggedArea.size / 2;
+      const y = e.clientY - rect.top - this.draggedArea.size / 2;
 
-        // 检查点击位置所在的房间
-        const realX = x / this.scale;
-        const realY = y / this.scale;
-        const room = this.findRoomAtPoint(realX, realY);
-        
-        if (!room) {
-            this.createArea(x, y, this.draggedArea.type);
+      // 检查点击位置所在的房间
+      const realX = x / this.scale;
+      const realY = y / this.scale;
+      const room = this.findRoomAtPoint(realX, realY);
+
+      if (!room) {
+        this.createArea(x, y, this.draggedArea.type);
+      } else {
+        // 检查该房间内的区域数量
+        const areasInRoom = this.findRegionsInRoom(room).filter(
+          (area) => area.type === "monitor-area" && area.isValid
+        );
+        if (areasInRoom.length >= 30) {
+          this.showToast(this.translate("each_room_can_only_have_30_areas"));
         } else {
-            // 检查该房间内的区域数量
-            const areasInRoom = this.findRegionsInRoom(room).filter(area => area.type === "monitor-area" && area.isValid);
-            console.log('区域数据---', areasInRoom);
-            if (areasInRoom.length >= 30) {
-                this.showToast("每个房间最多只能有30个区域");
-            } else {
-                // 创建区域
-                this.createArea(x, y, this.draggedArea.type);
-            }
+          // 创建区域
+          this.createArea(x, y, this.draggedArea.type);
         }
+      }
     }
 
     // 清理
     if (this.draggedArea.element) {
-        this.draggedArea.element.remove();
+      this.draggedArea.element.remove();
     }
     this.draggedArea = null;
     this.isDraggingArea = false;
@@ -2569,29 +2624,31 @@ export class ApartmentView extends HTMLElement {
 
     // 创建新区域对象
     const area = {
-        id: areaId,
-        type: areaType,
-        areaType: 0,
-        name: isMonitor ? `${this.translate("monitoring_area")}${areaId}` : `${this.translate("interference_source")}${areaId}`,
-        left: x,
-        top: y,
-        width: width,
-        height: height,
-        realWidth: realWidth,
-        realHeight: realHeight,
-        realLeft: realLeft,
-        realTop: realTop,
-        color: areaColor,
-        reportEvents: false,
-        visible: true,
+      id: areaId,
+      type: areaType,
+      areaType: 0,
+      name: isMonitor
+        ? `${this.translate("monitoring_area")}${areaId}`
+        : `${this.translate("interference_source")}${areaId}`,
+      left: x,
+      top: y,
+      width: width,
+      height: height,
+      realWidth: realWidth,
+      realHeight: realHeight,
+      realLeft: realLeft,
+      realTop: realTop,
+      color: areaColor,
+      reportEvents: isMonitor ? true : false,
+      visible: true,
     };
 
     // 检查是否与现有区域重叠
-    const isOverlapping = this.checkAreaOverlap(area);
+    let isOverlapping = isMonitor ? this.checkAreaOverlap(area) : this.checkInterferenceSourceAndDoorOverlap(area);
     if (isOverlapping) {
-        area.isValid = false;
+      area.isValid = false;
     } else {
-        area.isValid = true;
+      area.isValid = true;
     }
 
     this.areas.push(area);
@@ -2600,41 +2657,129 @@ export class ApartmentView extends HTMLElement {
 
   // 修改 checkAreaOverlap 方法
   checkAreaOverlap(newArea) {
-    return this.areas.some(existingArea => {
-        // 跳过与自身的比较
-        if (existingArea.id === newArea.id) return false;
-        
-        // 如果是干扰源和监测区域的组合，允许重叠
-        if ((newArea.type === "interference-source" && existingArea.type === "monitor-area") ||
-            (newArea.type === "monitor-area" && existingArea.type === "interference-source")) {
-            return false;
-        }
-        
-        // 如果都是干扰源，允许重叠
-        if (newArea.type === "interference-source" && existingArea.type === "interference-source") {
-            return false;
-        }
-        
-        // 如果都是监测区域，检查重叠
-        if (newArea.type === "monitor-area" && existingArea.type === "monitor-area") {
-            // 获取现有区域的当前位置
-            const areaElement = this.shadowRoot.querySelector(`.area[data-area-id="${existingArea.id}"]`);
-            if (!areaElement) return false;
-            
-            const currentLeft = parseFloat(areaElement.style.left);
-            const currentTop = parseFloat(areaElement.style.top);
-            const currentWidth = parseFloat(areaElement.style.width);
-            const currentHeight = parseFloat(areaElement.style.height);
-            
-            // 检查两个监测区域是否重叠
-            return !(newArea.left + newArea.width <= currentLeft ||
-                    newArea.left >= currentLeft + currentWidth ||
-                    newArea.top + newArea.height <= currentTop ||
-                    newArea.top >= currentTop + currentHeight);
-        }
-        
+    return this.areas.some((existingArea) => {
+      // 跳过与自身的比较
+      if (existingArea.id === newArea.id) return false;
+
+      // 如果是干扰源和监测区域的组合，允许重叠
+      if (
+        (newArea.type === "interference-source" &&
+          existingArea.type === "monitor-area") ||
+        (newArea.type === "monitor-area" &&
+          existingArea.type === "interference-source")
+      ) {
         return false;
+      }
+
+      // 如果都是干扰源，允许重叠
+      if (
+        newArea.type === "interference-source" &&
+        existingArea.type === "interference-source"
+      ) {
+        return false;
+      }
+
+      // 如果都是监测区域，检查重叠
+      if (
+        newArea.type === "monitor-area" &&
+        existingArea.type === "monitor-area"
+      ) {
+        // 获取现有区域的当前位置
+        const areaElement = this.shadowRoot.querySelector(
+          `.area[data-area-id="${existingArea.id}"]`
+        );
+        if (!areaElement) return false;
+
+        const currentLeft = parseFloat(areaElement.style.left);
+        const currentTop = parseFloat(areaElement.style.top);
+        const currentWidth = parseFloat(areaElement.style.width);
+        const currentHeight = parseFloat(areaElement.style.height);
+
+        // 检查两个监测区域是否重叠
+        return !(
+          newArea.left + newArea.width <= currentLeft ||
+          newArea.left >= currentLeft + currentWidth ||
+          newArea.top + newArea.height <= currentTop ||
+          newArea.top >= currentTop + currentHeight
+        );
+      }
+
+      return false;
     });
+  }
+
+  // 检查干扰源和门是否重叠
+  checkInterferenceSourceAndDoorOverlap(interferenceArea) {
+    // 遍历所有贴纸，找到所有门
+    const doors = this.stickers.filter((sticker) => sticker.type === "door");
+
+    // 检查干扰源区域是否与任何门重叠
+    const overlappingDoors = doors.filter((door) => {
+      // 获取门的实际位置和尺寸
+      const doorRect = {
+        left: door.realLeft,
+        top: door.realTop,
+        right: door.realLeft + door.realWidth,
+        bottom: door.realTop + door.realHeight,
+      };
+
+      // 获取干扰源区域的位置和尺寸
+      const areaRect = {
+        left: interferenceArea.realLeft,
+        top: interferenceArea.realTop,
+        right: interferenceArea.realLeft + interferenceArea.realWidth,
+        bottom: interferenceArea.realTop + interferenceArea.realHeight,
+      };
+      // console.log("干扰源区域--", areaRect);
+      // console.log("门----", doorRect);
+      // 检查两个矩形是否重叠
+      const isOverlapping = !(
+        areaRect.right < doorRect.left ||
+        areaRect.left > doorRect.right ||
+        areaRect.bottom < doorRect.top ||
+        areaRect.top > doorRect.bottom
+      );
+
+      return isOverlapping;
+    });
+    // console.log("hhhhhh ---", overlappingDoors.length);
+    // // 如果有重叠的门，标记干扰源为无效
+    // if (overlappingDoors.length > 0) {
+    //   interferenceArea.isValid = false;
+
+    //   // 更新干扰源的视觉样式
+    //   const areaElement = interferenceArea.element;
+    //   console.log('干扰源区域776--',areaElement);
+    //   if (areaElement) {
+    //     areaElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+    //     areaElement.style.border = "2px dashed #FF0000";
+
+    //     // 添加警告提示
+    //     if (!areaElement.querySelector(".area-warning")) {
+    //       const warningLabel = document.createElement("div");
+    //       warningLabel.className = "area-warning";
+    //       warningLabel.textContent = "干扰源不能与门重叠";
+    //       areaElement.appendChild(warningLabel);
+    //     }
+    //   }
+    // } else {
+    //   interferenceArea.isValid = true;
+
+    //   // 恢复干扰源的正常样式
+    //   const areaElement = interferenceArea.element;
+    //   if (areaElement) {
+    //     areaElement.style.backgroundColor = "";
+    //     areaElement.style.border = "";
+
+    //     // 移除警告提示
+    //     const warningLabel = areaElement.querySelector(".area-warning");
+    //     if (warningLabel) {
+    //       warningLabel.remove();
+    //     }
+    //   }
+    // }
+
+    return overlappingDoors.length > 0;
   }
 
   // 修改 drawArea 方法
@@ -2647,21 +2792,21 @@ export class ApartmentView extends HTMLElement {
     areaElement.style.top = `${area.top}px`;
     areaElement.style.width = `${area.width}px`;
     areaElement.style.height = `${area.height}px`;
-    
+
     // 根据是否重叠设置不同的样式
     if (!area.isValid) {
-        // 重叠��域使用红色虚线边框
-        areaElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
-        areaElement.style.border = "2px dashed #FF0000";
-        // 添加警告提示
-        const warningLabel = document.createElement("div");
-        warningLabel.className = "area-warning";
-        warningLabel.textContent = "区域重叠";
-        areaElement.appendChild(warningLabel);
+      // 重叠区域使用红色虚线边框
+      areaElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+      areaElement.style.border = "2px dashed #FF0000";
+      // 添加警告提示
+      const warningLabel = document.createElement("div");
+      warningLabel.className = "area-warning";
+      // warningLabel.textContent = "区域重叠";
+      areaElement.appendChild(warningLabel);
     } else {
-        // 正常区域使用原有样式
-        areaElement.style.backgroundColor = `${area.color}33`;
-        areaElement.style.border = `2px solid ${area.color}`;
+      // 正常区域使用原有样式
+      areaElement.style.backgroundColor = `${area.color}33`;
+      areaElement.style.border = `2px solid ${area.color}`;
     }
 
     areaElement.innerHTML += `
@@ -2679,19 +2824,19 @@ export class ApartmentView extends HTMLElement {
     if (!area) return;
 
     // 判断是否是干扰源区域（通过颜色判断）
-    const isInterference = area.color === "#ff0000";
+    const isInterference = area.type === "interference-area";
 
     const dialog = document.createElement("div");
     dialog.className = "dialog-overlay";
     dialog.innerHTML = `
         <div class="dialog">
-            <div class="dialog-title">区域设置</div>
+            <div class="dialog-title">${this.translate("area_settings")}</div>
             <div class="dialog-content">
                 ${
                   !isInterference
                     ? `
                     <div class="form-field">
-                        <label>类型</label>
+                        <label>${this.translate("area_type")}</label>
                         <select id="area-type">
                             ${Object.entries(AREA_TYPES)
                               .map(
@@ -2710,13 +2855,16 @@ export class ApartmentView extends HTMLElement {
                     : ""
                 }
                 <div class="form-field">
-                    <label>区域名称</label>
+                    <label>${this.translate("area_name")}</label>
                     <input type="text" id="area-name" value="${
                       area.name
-                    }" placeholder="输入区域名称">
+                    }" placeholder="${this.translate("input_area_name")}">
                 </div>
+                ${
+                  !isInterference
+                    ? `
                 <div class="form-field">
-                    <label>颜色</label>
+                    <label>${this.translate("area_color")}</label>
                     <div class="color-field">
                         <input type="color" id="area-color" class="color-input" value="${
                           area.color
@@ -2729,20 +2877,27 @@ export class ApartmentView extends HTMLElement {
                 </div>
                 <div class="form-field">
                     <label class="switch-label">
-                        <span>事件上报</span>
+                        <span>${this.translate("report_events")}</span>
                         <ha-switch id="report-events"></ha-switch>
                     </label>
                 </div>
+                `
+                    : ""
+                }
                 <div class="form-field">
                     <label class="switch-label">
-                        <span>显示/隐藏</span>
+                        <span>${this.translate("visible")}</span>
                         <ha-switch id="area-visible"></ha-switch>
                     </label>
                 </div>
             </div>
             <div class="dialog-buttons">
-                <mwc-button outlined id="cancel-button">取消</mwc-button>
-                <mwc-button raised id="confirm-button">确定</mwc-button>
+                <mwc-button outlined id="cancel-button">${this.translate(
+                  "cancel"
+                )}</mwc-button>
+                <mwc-button raised id="confirm-button">${this.translate(
+                  "confirm"
+                )}</mwc-button>
             </div>
         </div>
     `;
@@ -2763,15 +2918,17 @@ export class ApartmentView extends HTMLElement {
     }
 
     // 添加颜色变化事件
-    const colorInput = dialog.querySelector("#area-color");
-    const colorPreview = dialog.querySelector(".color-preview");
-    const colorValue = dialog.querySelector(".color-value");
+    if (!isInterference) {
+      const colorInput = dialog.querySelector("#area-color");
+      const colorPreview = dialog.querySelector(".color-preview");
+      const colorValue = dialog.querySelector(".color-value");
 
-    colorInput.addEventListener("input", (e) => {
-      const color = e.target.value;
-      colorPreview.style.backgroundColor = color;
-      colorValue.textContent = color;
-    });
+      colorInput.addEventListener("input", (e) => {
+        const color = e.target.value;
+        colorPreview.style.backgroundColor = color;
+        colorValue.textContent = color;
+      });
+    }
 
     // 添加事件处理
     const cancelBtn = dialog.querySelector("#cancel-button");
@@ -2782,10 +2939,10 @@ export class ApartmentView extends HTMLElement {
       // 更新区域数据
       if (!isInterference) {
         area.areaType = parseInt(dialog.querySelector("#area-type").value);
+        area.color = dialog.querySelector("#area-color").value;
+        area.reportEvents = reportEventsSwitch.checked;
       }
       area.name = dialog.querySelector("#area-name").value;
-      area.color = dialog.querySelector("#area-color").value;
-      area.reportEvents = reportEventsSwitch.checked;
       area.visible = visibleSwitch.checked;
 
       // 检查是否与其他区域重叠
@@ -2793,7 +2950,7 @@ export class ApartmentView extends HTMLElement {
       area.isValid = !isOverlapping;
 
       // 重新绘制区域
-      this.shadowRoot.querySelector('.drawing-area').removeChild(element);
+      this.shadowRoot.querySelector(".drawing-area").removeChild(element);
       this.drawArea(area);
 
       dialog.remove();
@@ -2802,16 +2959,13 @@ export class ApartmentView extends HTMLElement {
 
   // 修改获取下一个区域ID的方法
   getNextAreaId() {
-    // 获取所有已使用的ID
-    const usedIds = new Set(this.areas.map(area => area.id));
-    
-    // 从1开始查找第一个未使用的ID
-    let nextId = 1;
-    while (usedIds.has(nextId)) {
-        nextId++;
+    // 优先使用已回收���区域ID
+    if (this.availableAreaIds.size > 0) {
+      const id = Math.min(...this.availableAreaIds);
+      this.availableAreaIds.delete(id);
+      return id;
     }
-    
-    return nextId;
+    return this.nextAreaId++;
   }
 
   // 添加区域ID回收方法
@@ -2880,12 +3034,12 @@ export class ApartmentView extends HTMLElement {
     try {
       // 加载雷达设备
       const storedDevicesResponse = await this.hass.callWS({
-        type: "airibes/get_stored_devices",  // 修改这里
+        type: "airibes/get_stored_devices", // 修改这里
       });
 
       // 加载导入的设备
       const importedDevicesResponse = await this.hass.callWS({
-        type: "airibes/get_imported_devices",  // 修改这里
+        type: "airibes/get_imported_devices", // 修改这里
       });
 
       let allDevices = [];
@@ -2898,9 +3052,11 @@ export class ApartmentView extends HTMLElement {
           radarDevices = storedDevicesResponse
             .filter((device) => device && device.device_id)
             .map((device) => ({
-              name: device.name || "人体存在传感器",
+              name: device.name || "Radar",
               device_id: device.device_id,
-              displayName: `雷达-${device.device_id.slice(-4)}`,
+              displayName: `${this.translate("radar")}-${device.device_id.slice(
+                -4
+              )}`,
               type: "radar",
             }));
         }
@@ -2909,9 +3065,11 @@ export class ApartmentView extends HTMLElement {
           radarDevices = Object.entries(storedDevicesResponse)
             .filter(([key, value]) => value && value.device_id)
             .map(([key, device]) => ({
-              name: device.name || "人体存在传感器",
+              name: device.name || "Radar",
               device_id: device.device_id,
-              displayName: `雷达-${device.device_id.slice(-4)}`,
+              displayName: `${this.translate("radar")}-${device.device_id.slice(
+                -4
+              )}`,
               type: "radar",
             }));
         }
@@ -2924,11 +3082,20 @@ export class ApartmentView extends HTMLElement {
         Array.isArray(importedDevicesResponse.devices)
       ) {
         const importedDevices = importedDevicesResponse.devices
-          .filter((device) => device && device.entity_id && device.type)
+          .filter(
+            (device) =>
+              device &&
+              device.entity_id &&
+              device.type &&
+              this.hass.states[device.entity_id]
+          )
           .map((device) => {
             const deviceId = device.entity_id;
             const type = device.type; // light 或 climate
-            const typeName = type === "light" ? "灯" : "空调";
+            const typeName =
+              type === "light"
+                ? this.translate("light")
+                : this.translate("air_conditioner");
             const displayName = `${typeName}-${deviceId.slice(-4)}`;
 
             return {
@@ -2956,10 +3123,10 @@ export class ApartmentView extends HTMLElement {
     const device = this.devices.find((d) => d.device_id === deviceId);
     if (!device) return;
     const deviceTypeMap = {
-      "radar": "mdi:radar",
-      "light": "mdi:lightbulb",
-      "climate": "mdi:air-conditioner",
-      "default": "mdi:help-circle"
+      radar: "mdi:radar",
+      light: "mdi:lightbulb",
+      climate: "mdi:air-conditioner",
+      default: "mdi:help-circle",
     };
     let icon = deviceTypeMap[device.type] || deviceTypeMap["default"];
     // 创预览元素
@@ -3026,7 +3193,7 @@ export class ApartmentView extends HTMLElement {
       }
       this.draggedDevice = null;
 
-      // 移除件监听器
+      // 移除件监��器
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
@@ -3050,25 +3217,31 @@ export class ApartmentView extends HTMLElement {
     dialog.className = "dialog-overlay";
     dialog.innerHTML = `
         <div class="dialog">
-            <div class="dialog-title">设备设置</div>
+            <div class="dialog-title">${this.translate("device_settings")}</div>
             <div class="dialog-content">
                 <div class="form-field">
                     <div class="info-row">
-                        <span class="info-label">设备名称：</span>
+                        <span class="info-label">${this.translate(
+                          "device_name"
+                        )}:</span>
                         <span class="info-value">${device.name}</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">设备ID：</span>
+                        <span class="info-label">${this.translate(
+                          "device_id"
+                        )}:</span>
                         <span class="info-value">${device.id}</span>
                     </div>
                 </div>
                 <div class="form-field">
-                    <label>安装高度(cm)</label>
+                    <label>${this.translate("install_height")}(cm)</label>
                     <div class="height-input-container">
                         <input type="number" id="device-height" value="${
                           device.installHeight || 0
                         }" min="0" step="1">
-                        <div class="height-suggestion">建议安装高高度：140-180cm</div>
+                        <div class="height-suggestion">${this.translate(
+                          "recommended_installation_height"
+                        )}: 140-180cm</div>
                     </div>
                 </div>
                 <div class="form-field">
@@ -3077,7 +3250,7 @@ export class ApartmentView extends HTMLElement {
                         <div class="angle-option ${
                           device.installAngle === 0 ? "selected" : ""
                         }" data-angle="0">
-                            <img src="/frontend_static/images/icon_degree.png" alt="角度0" style="transform: rotate(0deg)">
+                            <img src="/frontend_static/images/icon_degree.png" alt="angle_0" style="transform: rotate(0deg)">
                             ${
                               device.installAngle === 0
                                 ? '<span class="check-mark"><ha-icon icon="mdi:check-circle"></ha-icon></span>'
@@ -3087,7 +3260,7 @@ export class ApartmentView extends HTMLElement {
                         <div class="angle-option ${
                           device.installAngle === 1 ? "selected" : ""
                         }" data-angle="1">
-                            <img src="/frontend_static/images/icon_degree.png" alt="角度1" style="transform: rotate(180deg)">
+                            <img src="/frontend_static/images/icon_degree.png" alt="angle_1" style="transform: rotate(180deg)">
                             ${
                               device.installAngle === 1
                                 ? '<span class="check-mark"><ha-icon icon="mdi:check-circle"></ha-icon></span>'
@@ -3097,7 +3270,7 @@ export class ApartmentView extends HTMLElement {
                         <div class="angle-option ${
                           device.installAngle === 2 ? "selected" : ""
                         }" data-angle="2">
-                            <img src="/frontend_static/images/icon_degree.png" alt="角度2" style="transform: rotate(270deg)">
+                            <img src="/frontend_static/images/icon_degree.png" alt="angle_2" style="transform: rotate(270deg)">
                             ${
                               device.installAngle === 2
                                 ? '<span class="check-mark"><ha-icon icon="mdi:check-circle"></ha-icon></span>'
@@ -3107,7 +3280,7 @@ export class ApartmentView extends HTMLElement {
                         <div class="angle-option ${
                           device.installAngle === 3 ? "selected" : ""
                         }" data-angle="3">
-                            <img src="/frontend_static/images/icon_degree.png" alt="角度3" style="transform: rotate(90deg)">
+                            <img src="/frontend_static/images/icon_degree.png" alt="angle_3" style="transform: rotate(90deg)">
                             ${
                               device.installAngle === 3
                                 ? '<span class="check-mark"><ha-icon icon="mdi:check-circle"></ha-icon></span>'
@@ -3118,14 +3291,20 @@ export class ApartmentView extends HTMLElement {
                 </div>
                 <div class="form-field">
                     <label class="switch-label">
-                        <span>显示/隐藏</span>
-                        <ha-switch id="device-visible" checked=${device.visible}></ha-switch>
+                        <span>${this.translate("visible")}</span>
+                        <ha-switch id="device-visible" checked=${
+                          device.visible
+                        }></ha-switch>
                     </label>
                 </div>
             </div>
             <div class="dialog-buttons">
-                <mwc-button outlined id="cancel-button">取消</mwc-button>
-                <mwc-button raised id="confirm-button">确定</mwc-button>
+                <mwc-button outlined id="cancel-button">${this.translate(
+                  "cancel"
+                )}</mwc-button>
+                <mwc-button raised id="confirm-button">${this.translate(
+                  "confirm"
+                )}</mwc-button>
             </div>
         </div>
     `;
@@ -3161,7 +3340,7 @@ export class ApartmentView extends HTMLElement {
         e.target.value = 0;
       }
     });
-    if(visibleSwitch){
+    if (visibleSwitch) {
       visibleSwitch.checked = device.visible !== false;
     }
     cancelBtn.addEventListener("click", () => dialog.remove());
@@ -3206,14 +3385,14 @@ export class ApartmentView extends HTMLElement {
     this.setupToolListeners();
   }
 
-  // 修改 createDeviceElement 方法
+  // ��改 createDeviceElement 方法
   createDeviceElement(x, y, deviceId) {
     const device = this.devices.find((d) => d.device_id === deviceId);
     if (!device) return;
 
     // 设备真实尺寸为10cm
     const realSize = 10; // 10cm
-    const displaySize = realSize * this.scale; // 转换为显示尺寸
+    const displaySize = 24; //realSize * this.scale; // 转换为显示尺寸
 
     // 计算真实位置（厘米）
     const realLeft = Math.round(x / this.scale);
@@ -3267,7 +3446,7 @@ export class ApartmentView extends HTMLElement {
       name: device.displayName,
       shortName: shortName,
       rotation: 0,
-      installHeight: 0,
+      installHeight: 160,
       installAngle: 0,
     });
 
@@ -3286,7 +3465,9 @@ export class ApartmentView extends HTMLElement {
     const stickerInfo = STICKER_TYPES[stickerType];
     if (!stickerInfo) return;
 
+    // 如果是门，使用区域ID系统
     const stickerId = this.getNextStickerId();
+    const areaId = stickerType === "door" ? this.getNextAreaId() : 0;
 
     // 使用贴纸信息中的默认尺寸
     const realWidth = stickerInfo.width;
@@ -3298,22 +3479,78 @@ export class ApartmentView extends HTMLElement {
     stickerElement.className = "sticker-element";
     stickerElement.dataset.stickerId = stickerId;
     stickerElement.dataset.stickerType = stickerType;
-    
+    stickerElement.dataset.areaId = areaId;
+
     // 计算真实位置（厘米）
     const realLeft = (x - displayWidth / 2) / this.scale;
     const realTop = (y - displayHeight / 2) / this.scale;
-    
+
     // 设置显示位置
     stickerElement.style.left = `${realLeft * this.scale}px`;
     stickerElement.style.top = `${realTop * this.scale}px`;
     stickerElement.style.width = `${displayWidth}px`;
     stickerElement.style.height = `${displayHeight}px`;
 
-    // 统一的内容模板，不再区分门
+    let isValid = true;
+    // 如果是门，检查位置和数量
+    if (stickerType === "door") {
+      // 获取门的中心点
+      const doorCenter = {
+        x: realLeft + realWidth / 2,
+        y: realTop + realHeight / 2,
+      };
+
+      // 查找门所在的房间
+      const room = this.rooms.find((room) => {
+        const tolerance = 10; // 容差值（厘米）
+
+        // 检查是否在房间的墙上
+        const onLeftWall = Math.abs(doorCenter.x - room.realLeft) < tolerance;
+        const onRightWall =
+          Math.abs(doorCenter.x - (room.realLeft + room.realWidth)) < tolerance;
+        const onTopWall = Math.abs(doorCenter.y - room.realTop) < tolerance;
+        const onBottomWall =
+          Math.abs(doorCenter.y - (room.realTop + room.realHeight)) < tolerance;
+
+        // 检查是否在房间范围内
+        const inHorizontalRange =
+          doorCenter.x >= room.realLeft &&
+          doorCenter.x <= room.realLeft + room.realWidth;
+        const inVerticalRange =
+          doorCenter.y >= room.realTop &&
+          doorCenter.y <= room.realTop + room.realHeight;
+
+        return (
+          ((onLeftWall || onRightWall) && inVerticalRange) ||
+          ((onTopWall || onBottomWall) && inHorizontalRange)
+        );
+      });
+
+      if (room) {
+        // 检查房间墙上的门数量
+        const doorsOnWalls = this.findDoorsOnRoomWalls(room);
+        if (doorsOnWalls.length >= 5) {
+          isValid = false;
+          // 添加无效样式
+          stickerElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+          stickerElement.style.border = "2px dashed #FF0000";
+
+          // 添加警告提示
+          const warningLabel = document.createElement("div");
+          warningLabel.className = "area-warning";
+          warningLabel.textContent = this.translate("max_doors_in_room");
+          stickerElement.appendChild(warningLabel);
+        }
+      }
+    }
+
+    // 统一的内容模板
     stickerElement.innerHTML = `
       <div class="sticker-content">
         ${stickerInfo.getSvg()}
-        <span class="sticker-size">${realWidth}×${realHeight}</span>
+        <span class=${
+          stickerType === "door" ? "door-size" : "sticker-size"
+        }>${realWidth}×${realHeight}</span>
       </div>
     `;
 
@@ -3323,6 +3560,7 @@ export class ApartmentView extends HTMLElement {
     // 添加贴纸到列表
     this.stickers.push({
       id: stickerId,
+      areaId: areaId,
       type: stickerType,
       element: stickerElement,
       width: realWidth,
@@ -3332,6 +3570,7 @@ export class ApartmentView extends HTMLElement {
       realLeft: realLeft,
       realTop: realTop,
       name: stickerInfo.name,
+      isValid: isValid, // 添加有效性标记
     });
 
     this.shadowRoot.querySelector(".drawing-area").appendChild(stickerElement);
@@ -3442,11 +3681,18 @@ export class ApartmentView extends HTMLElement {
   // 添加删除贴纸的方法
   deleteSticker(element) {
     const stickerId = parseInt(element.dataset.stickerId);
+    const areaId = parseInt(element.dataset.areaId);
+    const stickerType = element.dataset.stickerType;
 
     // 从列表中移除贴纸
     this.stickers = this.stickers.filter((sticker) => sticker.id !== stickerId);
 
-    // 回收ID
+    // 根据类型回收ID
+    if (stickerType === "door") {
+      // 如果是门，回收到区域ID池
+      this.availableAreaIds.add(areaId);
+    }
+    // 其他贴纸回收到贴纸ID池
     this.availableStickerIds.add(stickerId);
 
     // 如果是当前选中的元素，清除选中状态
@@ -3455,12 +3701,21 @@ export class ApartmentView extends HTMLElement {
       this.updateCursor();
     }
 
-    // 从DOM中除贴纸元素
+    // 从DOM中移除贴纸元素
     element.remove();
   }
 
   // 添加保存数据方法
   async saveApartmentData() {
+    // 检查房间贴纸数量限制
+    const checkResult = this.checkRoomStickersLimit();
+    console.log("检查结果", checkResult);
+    if (checkResult.hasExceeded) {
+        const roomName = checkResult.room.name || `房间${checkResult.room.id}`;
+        alert(`${roomName}中的贴纸数量(${checkResult.count})超过15个，请删除一些贴纸后再保存。`);
+        return;
+    }
+
     // 获取保存按钮
     const saveButton = this.shadowRoot.getElementById("save-button");
     if (!saveButton) return;
@@ -3474,17 +3729,17 @@ export class ApartmentView extends HTMLElement {
       const originalContent = saveButton.innerHTML;
       saveButton.innerHTML = `
         <div class="loading-spinner"></div>
-        <span>保存中...</span>
+        <span>${this.translate("saving")}...</span>
       `;
 
       const data = this.prepareDataToSave();
       const senderData = this.prepareSenderData();
       console.log("保存-data", data);
       console.log("保存-senderData", senderData);
-      
+
       // 添加可视化调用
       this.visualizeSenderData(senderData);
-      
+
       await this.hass.callWS({
         type: "airibes/save_apartment_data",
         apartment_id: this.currentApartmentId,
@@ -3495,7 +3750,7 @@ export class ApartmentView extends HTMLElement {
       // 保存成功
       saveButton.innerHTML = `
         <ha-icon icon="mdi:check"></ha-icon>
-        <span>已保存</span>
+        <span>${this.translate("saved")}</span>
       `;
       this.showToast(this.translate("save_success"));
 
@@ -3504,14 +3759,13 @@ export class ApartmentView extends HTMLElement {
         saveButton.disabled = false;
         saveButton.innerHTML = originalContent;
       }, 2000);
-
     } catch (error) {
       console.error("保存户型数据失败:", error);
-      
+
       // 显示错误状态
       saveButton.innerHTML = `
         <ha-icon icon="mdi:alert"></ha-icon>
-        <span>保存失败</span>
+        <span>${this.translate("save_failed")}</span>
       `;
       this.showToast(this.translate("save_failed"));
 
@@ -3535,19 +3789,19 @@ export class ApartmentView extends HTMLElement {
     return {
       rooms: this.rooms.map((room) => {
         // 找到房间内的所有设备
-        const roomDevices = this.placedDevices.filter(device => {
+        const roomDevices = this.placedDevices.filter((device) => {
           // 获取设备的中心点坐标
           const deviceCenterX = device.realLeft + (device.width || 0) / 2;
           const deviceCenterY = device.realTop + (device.height || 0) / 2;
-          
-          // 检查设备是否在房间内
-          return deviceCenterX >= room.realLeft && 
-                 deviceCenterX <= (room.realLeft + room.realWidth) &&
-                 deviceCenterY >= room.realTop && 
-                 deviceCenterY <= (room.realTop + room.realHeight);
-        });
 
-        console.log(`房间 ${room.id} 内的设备:`, roomDevices);
+          // 检查设备是否在房间内
+          return (
+            deviceCenterX >= room.realLeft &&
+            deviceCenterX <= room.realLeft + room.realWidth &&
+            deviceCenterY >= room.realTop &&
+            deviceCenterY <= room.realTop + room.realHeight
+          );
+        });
 
         return {
           id: room.id,
@@ -3559,7 +3813,7 @@ export class ApartmentView extends HTMLElement {
           top: room.realTop,
           color: room.color,
           rotation: room.rotation || 0,
-          devices: roomDevices.map(device => device.id)  // 添加房间内的设备ID列表
+          devices: roomDevices.map((device) => device.id), // 添加房间内的设备ID列表
         };
       }),
       areas: this.areas.map((area) => ({
@@ -3575,7 +3829,7 @@ export class ApartmentView extends HTMLElement {
         reportEvents: area.reportEvents,
         visible: area.visible,
         rotation: area.rotation || 0,
-        isValid: area.isValid // 添加 isValid 字段
+        isValid: area.isValid, // 添加 isValid 字段
       })),
       stickers: this.stickers.map((sticker) => {
         const element = sticker.element;
@@ -3588,13 +3842,14 @@ export class ApartmentView extends HTMLElement {
 
         return {
           id: sticker.id,
+          areaId: sticker.areaId,
           type: sticker.type,
           width: sticker.realWidth,
           height: sticker.realHeight,
           left: Math.round(sticker.realLeft),
           top: Math.round(sticker.realTop),
           rotation: rotation,
-          isValid: sticker.type === "door" ? sticker.isValid : true // 只为门添加有效性字段
+          isValid: sticker.type === "door" ? sticker.isValid : true, // 只为门添加有效性字段
         };
       }),
       devices: this.placedDevices.map((device) => ({
@@ -3623,7 +3878,7 @@ export class ApartmentView extends HTMLElement {
 
     // 遍历所有设备
     this.placedDevices.forEach((device) => {
-      if (device.type !== 'radar') return; // 如果设备类型不是雷达，跳过
+      if (device.type !== "radar") return; // 如果设备类型不是雷达，跳过
       // 找到包含该设备的房间
       const room = this.findRoomContainingDevice(device);
       if (!room) return; // 如果设备不在任何间内，跳过
@@ -3693,74 +3948,80 @@ export class ApartmentView extends HTMLElement {
         region: [
           // 处理普通区域（转换为毫米），过滤掉无效区域
           ...this.findRegionsInRoom(room)
-              .filter(area => area.isValid) // 只包含有效的区域
-              .map((area, index) => ({
-                  "area-attribute": area.type === "monitor-area" ? 4 : 1,
-                  "area-type": area.areaType,
-                  "area-id": area.id,
-                  "area-sensitivity": 1,
-                  points: [
-                      {
-                          x: Math.round(area.realLeft * 10),
-                          y: Math.round(area.realTop * 10),
-                      },
-                      {
-                          x: Math.round((area.realLeft + area.realWidth) * 10),
-                          y: Math.round(area.realTop * 10),
-                      },
-                      {
-                          x: Math.round((area.realLeft + area.realWidth) * 10),
-                          y: Math.round((area.realTop + area.realHeight) * 10),
-                      },
-                      {
-                          x: Math.round(area.realLeft * 10),
-                          y: Math.round((area.realTop + area.realHeight) * 10),
-                      },
-                  ],
-              })),
+            .filter((area) => area.isValid) // 只包含有效的区域
+            .map((area, index) => ({
+              "area-attribute": area.type === "monitor-area" ? 4 : 1,
+              "area-type": area.areaType,
+              "area-id": area.id,
+              "area-sensitivity": 1,
+              "area-report": area.reportEvents,
+              points: [
+                {
+                  x: Math.round(area.realLeft * 10),
+                  y: Math.round(area.realTop * 10),
+                },
+                {
+                  x: Math.round((area.realLeft + area.realWidth) * 10),
+                  y: Math.round(area.realTop * 10),
+                },
+                {
+                  x: Math.round((area.realLeft + area.realWidth) * 10),
+                  y: Math.round((area.realTop + area.realHeight) * 10),
+                },
+                {
+                  x: Math.round(area.realLeft * 10),
+                  y: Math.round((area.realTop + area.realHeight) * 10),
+                },
+              ],
+            })),
           // 处理放置在房间墙上的门（转换为毫米）
           ...this.findDoorsOnRoomWalls(room)
-            .filter(door => door.isValid) // 只包含有效的门
+            .filter((door) => door.isValid) // 只包含有效的门
             .map((door) => {
               // 计算门的中心点
               const centerX = door.realLeft + door.realWidth / 2;
               const centerY = door.realTop + door.realHeight / 2;
-              
+
               // 根据门的旋转角度计算顶点
-              const isHorizontal = (door.rotation === 90 || door.rotation === 270);
-              const doorWidth = isHorizontal ? door.realHeight + 10 : door.realWidth + 100;
-              const doorHeight = isHorizontal ? door.realWidth + 100 : door.realHeight + 10;
-              
+              const isHorizontal =
+                door.rotation === 90 || door.rotation === 270;
+              const doorWidth = isHorizontal
+                ? door.realHeight + 10
+                : door.realWidth + 100;
+              const doorHeight = isHorizontal
+                ? door.realWidth + 100
+                : door.realHeight + 10;
+
               // 计算四个顶点坐标
               const points = [
                 // 左上角
                 {
-                  x: Math.round((centerX - doorWidth/2) * 10),
-                  y: Math.round((centerY - doorHeight/2) * 10)
+                  x: Math.round((centerX - doorWidth / 2) * 10),
+                  y: Math.round((centerY - doorHeight / 2) * 10),
                 },
                 // 右上角
                 {
-                  x: Math.round((centerX + doorWidth/2) * 10),
-                  y: Math.round((centerY - doorHeight/2) * 10)
+                  x: Math.round((centerX + doorWidth / 2) * 10),
+                  y: Math.round((centerY - doorHeight / 2) * 10),
                 },
                 // 右下角
                 {
-                  x: Math.round((centerX + doorWidth/2) * 10),
-                  y: Math.round((centerY + doorHeight/2) * 10)
+                  x: Math.round((centerX + doorWidth / 2) * 10),
+                  y: Math.round((centerY + doorHeight / 2) * 10),
                 },
                 // 左下角
                 {
-                  x: Math.round((centerX - doorWidth/2) * 10),
-                  y: Math.round((centerY + doorHeight/2) * 10)
-                }
+                  x: Math.round((centerX - doorWidth / 2) * 10),
+                  y: Math.round((centerY + doorHeight / 2) * 10),
+                },
               ];
 
               return {
                 "area-attribute": 2, // 门的区域属性为2
                 "area-type": 0, // 门的区域类型为0
-                "area-id": door.id,
+                "area-id": door.areaId,
                 "area-sensitivity": 1,
-                points: points
+                points: points,
               };
             }),
         ],
@@ -3770,51 +4031,68 @@ export class ApartmentView extends HTMLElement {
           .map((sticker, index) => {
             const element = sticker.element;
             const rotation0 = element.style.transform
-          ? parseInt(
-              element.style.transform.match(/rotate\(([-\d.]+)deg\)/)?.[1] ||
-                "0"
-            )
-          : 0;
+              ? parseInt(
+                  element.style.transform.match(
+                    /rotate\(([-\d.]+)deg\)/
+                  )?.[1] || "0"
+                )
+              : 0;
             // 计算贴纸的中心点
             const centerX = sticker.realLeft + sticker.realWidth / 2;
             const centerY = sticker.realTop + sticker.realHeight / 2;
             // 计算旋转角度（弧度），注意改变旋转方向（加负号）
-            const rotation = (rotation0 || 0) * Math.PI / 180;
+            const rotation = ((rotation0 || 0) * Math.PI) / 180;
             const cos = Math.cos(rotation);
             const sin = Math.sin(rotation);
-            
+
             // 计算四个顶点相对于中心点的偏移
             const halfWidth = sticker.realWidth / 2;
             const halfHeight = sticker.realHeight / 2;
-            
+
             // 计算旋转后的四个顶点
             const points = [
               // 左上角
               {
-                x: Math.round((centerX + (-halfWidth * cos - halfHeight * sin)) * 10),
-                y: Math.round((centerY + (-halfWidth * sin + halfHeight * cos)) * 10)
+                x: Math.round(
+                  (centerX + (-halfWidth * cos - halfHeight * sin)) * 10
+                ),
+                y: Math.round(
+                  (centerY + (-halfWidth * sin + halfHeight * cos)) * 10
+                ),
               },
               // 右上角
               {
-                x: Math.round((centerX + (halfWidth * cos - halfHeight * sin)) * 10),
-                y: Math.round((centerY + (halfWidth * sin + halfHeight * cos)) * 10)
+                x: Math.round(
+                  (centerX + (halfWidth * cos - halfHeight * sin)) * 10
+                ),
+                y: Math.round(
+                  (centerY + (halfWidth * sin + halfHeight * cos)) * 10
+                ),
               },
               // 右下角
               {
-                x: Math.round((centerX + (halfWidth * cos + halfHeight * sin)) * 10),
-                y: Math.round((centerY + (halfWidth * sin - halfHeight * cos)) * 10)
+                x: Math.round(
+                  (centerX + (halfWidth * cos + halfHeight * sin)) * 10
+                ),
+                y: Math.round(
+                  (centerY + (halfWidth * sin - halfHeight * cos)) * 10
+                ),
               },
               // 左下角
               {
-                x: Math.round((centerX + (-halfWidth * cos + halfHeight * sin)) * 10),
-                y: Math.round((centerY + (-halfWidth * sin - halfHeight * cos)) * 10)
-              }
+                x: Math.round(
+                  (centerX + (-halfWidth * cos + halfHeight * sin)) * 10
+                ),
+                y: Math.round(
+                  (centerY + (-halfWidth * sin - halfHeight * cos)) * 10
+                ),
+              },
             ];
 
             return {
               "paster-type": this.getPasterType(sticker.type),
               "paster-id": index + 1,
-              points: points
+              points: points,
             };
           }),
       };
@@ -3936,6 +4214,17 @@ export class ApartmentView extends HTMLElement {
     for (const stickerData of data.stickers) {
       const stickerInfo = STICKER_TYPES[stickerData.type];
       if (!stickerInfo) continue;
+      // 如果是门，更新区域ID计数器
+      if (stickerData.type === "door" && stickerData.id >= this.nextAreaId) {
+        this.nextAreaId = stickerData.id + 1;
+      }
+      // 如果是其他贴纸，更新贴纸ID计数器
+      else if (
+        stickerData.type !== "door" &&
+        stickerData.id >= this.nextStickerId
+      ) {
+        this.nextStickerId = stickerData.id + 1;
+      }
 
       // 使用保存的真实尺寸
       const realWidth = stickerData.width || stickerInfo.width;
@@ -3950,8 +4239,10 @@ export class ApartmentView extends HTMLElement {
       const stickerElement = document.createElement("div");
       stickerElement.className = "sticker-element";
       stickerElement.dataset.stickerId = stickerData.id;
+      stickerElement.dataset.areaId = stickerData.areaId;
       stickerElement.dataset.stickerType = stickerData.type;
-      
+      stickerElement.dataset.isValid = stickerData.isValid;
+
       // 使用真实位置计算显示位置
       stickerElement.style.left = `${realLeft * this.scale}px`;
       stickerElement.style.top = `${realTop * this.scale}px`;
@@ -3966,23 +4257,26 @@ export class ApartmentView extends HTMLElement {
       if (stickerData.type === "door" && stickerData.isValid === false) {
         stickerElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
         stickerElement.style.border = "2px dashed #FF0000";
-        
+
         // 添加警告提示
-        const warningLabel = document.createElement('div');
-        warningLabel.className = 'area-warning';
+        const warningLabel = document.createElement("div");
+        warningLabel.className = "area-warning";
         warningLabel.textContent = this.translate("max_doors_in_room");
         stickerElement.appendChild(warningLabel);
       }
 
       stickerElement.innerHTML = `
-        <div class="sticker-content">
-          ${stickerInfo.getSvg()}
-          <span class="sticker-size">${realWidth}×${realHeight}</span>
-        </div>
-      `;
+          <div class="sticker-content">
+            ${stickerInfo.getSvg()}
+            <span class=${
+              stickerData.type === "door" ? "door-size" : "sticker-size"
+            }>${realWidth}×${realHeight}</span>
+          </div>
+        `;
 
       this.stickers.push({
         id: stickerData.id,
+        areaId: stickerData.areaId,
         type: stickerData.type,
         element: stickerElement,
         realWidth: realWidth,
@@ -3993,17 +4287,23 @@ export class ApartmentView extends HTMLElement {
         height: displayHeight,
         rotation: stickerData.rotation || 0,
         name: stickerInfo.name,
-        isValid: stickerData.isValid !== undefined ? stickerData.isValid : true // 恢复有效性状态
+        isValid: stickerData.isValid !== undefined ? stickerData.isValid : true, // 恢复有效性状态
       });
 
       this.setupStickerEvents(stickerElement);
-      this.shadowRoot.querySelector(".drawing-area").appendChild(stickerElement);
+      this.shadowRoot
+        .querySelector(".drawing-area")
+        .appendChild(stickerElement);
     }
 
     // 恢复设备
     for (const deviceData of data.devices) {
+      // 判断实体是否存在，不存在则跳过，不创建
+      if (deviceData.type !== "radar" && !this.hass.states[deviceData.id]) {
+        continue;
+      }
       const realSize = 10; // 设备真实尺寸10cm
-      const displaySize = realSize * this.scale;
+      const displaySize = 24; //realSize * this.scale;
 
       // 计算显示位置时考虑偏移量
       const displayLeft = deviceData.left * this.scale;
@@ -4013,8 +4313,8 @@ export class ApartmentView extends HTMLElement {
       deviceElement.className = "device-element";
       deviceElement.dataset.deviceId = deviceData.id;
       deviceElement.dataset.deviceType = deviceData.type;
-      deviceElement.style.left = `${displayLeft - displaySize / 2}px`; // 居中放置
-      deviceElement.style.top = `${displayTop - displaySize / 2}px`; // 居中放置
+      deviceElement.style.left = `${displayLeft}px`; // 居中放置
+      deviceElement.style.top = `${displayTop}px`; // 居中放置
       deviceElement.style.width = `${displaySize}px`; // 设置宽度
       deviceElement.style.height = `${displaySize}px`; // 设置高度
 
@@ -4054,7 +4354,7 @@ export class ApartmentView extends HTMLElement {
         realTop: deviceData.top,
         left: displayLeft, // 保存真实位置时加回偏移量
         top: displayTop, // 保存真实位置时加回偏移量
-        name: `雷达-${shortName}`,
+        name: `${this.translate("radar")}-${shortName}`,
         shortName: shortName,
         rotation: deviceData.rotation || 0,
         installHeight: deviceData.installHeight || 0,
@@ -4241,95 +4541,99 @@ export class ApartmentView extends HTMLElement {
   // 修改门对齐到墙的方法
   alignDoorToWall(doorRect, wall) {
     const alignedPosition = {
-        left: doorRect.left,
-        top: doorRect.top,
-        rotation: 0,
-        isValid: true
+      left: doorRect.left,
+      top: doorRect.top,
+      rotation: 0,
+      isValid: true,
     };
 
     const doorThickness = doorRect.width * 0.4;
 
     // 将门的位置转换为实际尺寸（厘米）
     const doorRealRect = {
-        left: Math.round(doorRect.left / this.scale),
-        top: Math.round(doorRect.top / this.scale),
-        width: Math.round(doorRect.width / this.scale),
-        height: Math.round(doorRect.height / this.scale)
+      left: Math.round(doorRect.left / this.scale),
+      top: Math.round(doorRect.top / this.scale),
+      width: Math.round(doorRect.width / this.scale),
+      height: Math.round(doorRect.height / this.scale),
     };
 
     // 检查房间内的门数量
-    const rooms = this.rooms.filter(room => {
-        if (wall.type === "horizontal") {
-            // 检查水平墙是否属于这个房间
-            const wallY = Math.round(wall.y1 / this.scale); // 转换为实际尺寸
-            const wallX = Math.round(wall.x1 / this.scale);
-            const wallX2 = Math.round(wall.x2 / this.scale);
-            
-            // 首先检查Y坐标是否匹配房间的上下边界
-            const isYMatch = Math.abs(wallY - room.realTop) < 10 || 
-                           Math.abs(wallY - (room.realTop + room.realHeight)) < 10;
-            
-            // 然后检查门的中心点是否在房间的X范围内
-            const doorCenterX = doorRealRect.left + doorRealRect.width/2;
-            const isXInRange = doorCenterX >= room.realLeft && 
-                             doorCenterX <= room.realLeft + room.realWidth;
-            return isYMatch && isXInRange;
-        } else {
-            // 检查垂直墙是否属于这个房间
-            const wallX = Math.round(wall.x1 / this.scale);
-            const wallY = Math.round(wall.y1 / this.scale);
-            const wallY2 = Math.round(wall.y2 / this.scale);
-            
-            // 首先检查X坐标是否匹配房间的左右边界
-            const isXMatch = Math.abs(wallX - room.realLeft) < 10 || 
-                           Math.abs(wallX - (room.realLeft + room.realWidth)) < 10;
-            
-            // 然后检查门的中心点是否在房间的Y范围内
-            const doorCenterY = doorRealRect.top + doorRealRect.height/2;
-            const isYInRange = doorCenterY >= room.realTop && 
-                             doorCenterY <= room.realTop + room.realHeight;
-            return isXMatch && isYInRange;
-        }
+    const rooms = this.rooms.filter((room) => {
+      if (wall.type === "horizontal") {
+        // 检查水平墙是否属于这个房间
+        const wallY = Math.round(wall.y1 / this.scale); // 转换为实际尺寸
+        const wallX = Math.round(wall.x1 / this.scale);
+        const wallX2 = Math.round(wall.x2 / this.scale);
+
+        // 首先检查Y坐标是否匹配房间的上下边界
+        const isYMatch =
+          Math.abs(wallY - room.realTop) < 10 ||
+          Math.abs(wallY - (room.realTop + room.realHeight)) < 10;
+
+        // 然后检查门的中心点是否在房间的X范围内
+        const doorCenterX = doorRealRect.left + doorRealRect.width / 2;
+        const isXInRange =
+          doorCenterX >= room.realLeft &&
+          doorCenterX <= room.realLeft + room.realWidth;
+        return isYMatch && isXInRange;
+      } else {
+        // 检查垂直墙是否属于这个房间
+        const wallX = Math.round(wall.x1 / this.scale);
+        const wallY = Math.round(wall.y1 / this.scale);
+        const wallY2 = Math.round(wall.y2 / this.scale);
+
+        // 首先检查X坐标是否匹配房间的左右边界
+        const isXMatch =
+          Math.abs(wallX - room.realLeft) < 10 ||
+          Math.abs(wallX - (room.realLeft + room.realWidth)) < 10;
+
+        // 然后检查门的中心点是否在房间的Y范围内
+        const doorCenterY = doorRealRect.top + doorRealRect.height / 2;
+        const isYInRange =
+          doorCenterY >= room.realTop &&
+          doorCenterY <= room.realTop + room.realHeight;
+        return isXMatch && isYInRange;
+      }
     });
 
     // 检查所有相关房间的门数量
     let isValid = true;
     for (const room of rooms) {
-        const doorsOnWalls = this.findDoorsOnRoomWalls(room);
-        if (doorsOnWalls.length >= 5) {
-            isValid = false;
-            this.showToast(this.translate("max_doors_in_room"));
-            break;
-        }
+      const doorsOnWalls = this.findDoorsOnRoomWalls(room);
+      if (doorsOnWalls.length >= 5) {
+        isValid = false;
+        this.showToast(this.translate("max_doors_in_room"));
+        break;
+      }
     }
 
     alignedPosition.isValid = isValid;
 
     if (wall.type === "horizontal") {
-        // 水平墙，门垂直放置
-        alignedPosition.rotation = 90;
-        alignedPosition.left = doorRect.left;
-        // 确保门在墙的范围内
-        const minLeft = wall.x1;
-        const maxLeft = wall.x2 - doorThickness;
-        alignedPosition.left = Math.max(
-            minLeft,
-            Math.min(maxLeft, alignedPosition.left)
-        );
-        // 对齐到墙的位置
-        alignedPosition.top = wall.y1 - doorRect.height / 2;
+      // 水平墙，门垂直放置
+      alignedPosition.rotation = 90;
+      alignedPosition.left = doorRect.left;
+      // 确保门在墙的范围内
+      const minLeft = wall.x1;
+      const maxLeft = wall.x2 - doorThickness;
+      alignedPosition.left = Math.max(
+        minLeft,
+        Math.min(maxLeft, alignedPosition.left)
+      );
+      // 对齐到墙的位置
+      alignedPosition.top = wall.y1 - doorRect.height / 2;
     } else {
-        // 垂直墙，门水平放置
-        alignedPosition.rotation = 0;
-        alignedPosition.left = wall.x1 - doorRect.width / 2;
-        alignedPosition.top = doorRect.top;
-        // 确保门在墙的范围内
-        const minTop = wall.y1;
-        const maxTop = wall.y2 - doorThickness;
-        alignedPosition.top = Math.max(
-            minTop,
-            Math.min(maxTop, alignedPosition.top)
-        );
+      // 垂直墙，门水平放置
+      alignedPosition.rotation = 0;
+      alignedPosition.left = wall.x1 - doorRect.width / 2;
+      alignedPosition.top = doorRect.top;
+      // 确保门在墙的范围内
+      const minTop = wall.y1;
+      const maxTop = wall.y2 - doorThickness;
+      alignedPosition.top = Math.max(
+        minTop,
+        Math.min(maxTop, alignedPosition.top)
+      );
     }
 
     return alignedPosition;
@@ -4493,63 +4797,72 @@ export class ApartmentView extends HTMLElement {
       other: 99, // 其他
     };
 
-    // 返回映射的类型ID，如果没有对应的映射则返回其他(99)
+    // 返回映射的��型ID，如果没有对应的映射则返回其他(99)
     return typeMap[stickerType] || 99;
   }
 
   // 添加查找房间墙上的门的方法
   findDoorsOnRoomWalls(room) {
     return this.stickers.filter((sticker) => {
-        // 只处理门类型的贴纸
-        if (sticker.type !== "door") return false;
+      // 只处理门类型的贴纸
+      if (sticker.type !== "door") return false;
+      // 获取门的中心点（使用实际尺寸）
+      const doorCenter = {
+        x: sticker.realLeft + sticker.realWidth / 2,
+        y: sticker.realTop + sticker.realHeight / 2,
+      };
 
-        // 获取门的中心点（使用实际尺寸）
-        const doorCenter = {
-            x: sticker.realLeft + sticker.realWidth / 2,
-            y: sticker.realTop + sticker.realHeight / 2
-        };
+      // 定义墙的容差范围（厘米）
+      const tolerance = 10;
+      // 获取门的旋转角度
+      const rotation = sticker.rotation || 0;
+      const isHorizontal = rotation === 90 || rotation === 270;
 
-        // 定义墙的容差范围（厘米）
-        const tolerance = 5;
-        // 获取门的旋转角度
-        const rotation = sticker.rotation || 0;
-        const isHorizontal = (rotation === 90 || rotation === 270);
+      // 检查是否在上下墙
+      const onHorizontalWall =
+        Math.abs(doorCenter.y - room.realTop) <= tolerance ||
+        Math.abs(doorCenter.y - (room.realTop + room.realHeight)) <= tolerance;
 
-        // 检查是否在上下墙
-        const onHorizontalWall =
-            Math.abs(doorCenter.y - room.realTop) <= tolerance ||
-            Math.abs(doorCenter.y - (room.realTop + room.realHeight)) <= tolerance;
-
-        // 检查是否在左右墙
-        const onVerticalWall =
-            Math.abs(doorCenter.x - room.realLeft) <= tolerance ||
-            Math.abs(doorCenter.x - (room.realLeft + room.realWidth)) <= tolerance;
-
-        // 根据门的旋转状态调整检查范围
-        let inRoomRange;
-        if (isHorizontal) {
-            // 水平放置的门（旋转90°或270°）
-            inRoomRange =
-                doorCenter.x >= (room.realLeft - tolerance) &&
-                doorCenter.x <= (room.realLeft + room.realWidth + tolerance) &&
-                doorCenter.y >= (room.realTop - sticker.realWidth/2) &&  // 使用实际尺寸
-                doorCenter.y <= (room.realTop + room.realHeight + sticker.realWidth/2);
-        } else {
-            // 垂直放置的门（旋转0°或180°）
-            inRoomRange =
-                doorCenter.x >= (room.realLeft - sticker.realWidth/2) &&
-                doorCenter.x <= (room.realLeft + room.realWidth + sticker.realWidth/2) &&
-                doorCenter.y >= (room.realTop - tolerance) &&
-                doorCenter.y <= (room.realTop + room.realHeight + tolerance);
-        }
-
-        // 门必须在墙上且在房间范围内
-        return (onHorizontalWall || onVerticalWall) && inRoomRange;
+      // 检查是否在左右墙
+      const onVerticalWall =
+        Math.abs(doorCenter.x - room.realLeft) <= tolerance ||
+        Math.abs(doorCenter.x - (room.realLeft + room.realWidth)) <= tolerance;
+      // 根据门的旋转状态调整检查范围
+      let inRoomRange;
+      if (isHorizontal) {
+        // 水平放置的门（旋转90°或270°）
+        inRoomRange =
+          doorCenter.x >= room.realLeft - tolerance &&
+          doorCenter.x <= room.realLeft + room.realWidth + tolerance &&
+          doorCenter.y >= room.realTop - sticker.realWidth / 2 - tolerance && // 使用实际尺寸
+          doorCenter.y <=
+            room.realTop + room.realHeight + sticker.realWidth / 2 + tolerance;
+      } else {
+        // 垂直放置的门（旋转0°或180°）
+        inRoomRange =
+          doorCenter.x >= room.realLeft - sticker.realWidth / 2 &&
+          doorCenter.x <=
+            room.realLeft +
+              room.realWidth +
+              sticker.realWidth / 2 +
+              tolerance &&
+          doorCenter.y >= room.realTop - tolerance &&
+          doorCenter.y <= room.realTop + room.realHeight + tolerance;
+      }
+      // 门必须在墙上且在房间范围内
+      return (onHorizontalWall || onVerticalWall) && inRoomRange;
     });
   }
 
   _handlePersonPositionsUpdate(event) {
     const { device_id, positions } = event.data;
+    // 检查设备是否在房间内
+    const device = this.devices.find(
+      (device) => device.type === "radar" && device.device_id === device_id
+    );
+    if (!device) {
+      return;
+    }
     this.personPositions.set(device_id, positions);
     this.drawPersonPositions(); // 重新绘制人员位置
   }
@@ -4584,13 +4897,15 @@ export class ApartmentView extends HTMLElement {
   visualizeSenderData(senderData) {
     // 获取绘图区域
     const drawingArea = this.shadowRoot.querySelector(".drawing-area");
-    
+
     // 移除旧的可视化层
-    const oldVisualization = this.shadowRoot.querySelector(".sender-data-visualization");
+    const oldVisualization = this.shadowRoot.querySelector(
+      ".sender-data-visualization"
+    );
     if (oldVisualization) {
       oldVisualization.remove();
     }
-    
+
     // 创建新的可视化层
     const visualizationLayer = document.createElement("div");
     visualizationLayer.className = "sender-data-visualization";
@@ -4603,50 +4918,67 @@ export class ApartmentView extends HTMLElement {
       pointer-events: none;
       z-index: 1000;
     `;
-    
+
     // 创建 SVG 元素
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.style.width = "100%";
     svg.style.height = "100%";
-    
+
     // 遍历每个设备的数据
-    Object.values(senderData).forEach(deviceData => {
+    Object.values(senderData).forEach((deviceData) => {
       // 绘制房间区域
       if (deviceData.roomRegion) {
-        const points = deviceData.roomRegion.map(p => 
-          `${(p.x/10) * this.scale},${(p.y/10) * this.scale}`
-        ).join(" ");
-        
-        const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const points = deviceData.roomRegion
+          .map((p) => `${(p.x / 10) * this.scale},${(p.y / 10) * this.scale}`)
+          .join(" ");
+
+        const polygon = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "polygon"
+        );
         polygon.setAttribute("points", points);
         polygon.setAttribute("fill", "none");
         polygon.setAttribute("stroke", "rgba(255,0,0,0.5)");
         polygon.setAttribute("stroke-width", "2");
         svg.appendChild(polygon);
       }
-      
+
       // 绘制所有区域
-      deviceData.region?.forEach(region => {
-        const points = region.points.map(p => 
-          `${(p.x/10) * this.scale},${(p.y/10) * this.scale}`
-        ).join(" ");
-        
-        const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      deviceData.region?.forEach((region) => {
+        const points = region.points
+          .map((p) => `${(p.x / 10) * this.scale},${(p.y / 10) * this.scale}`)
+          .join(" ");
+
+        const polygon = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "polygon"
+        );
         polygon.setAttribute("points", points);
         polygon.setAttribute("fill", "none");
-        polygon.setAttribute("stroke", region["area-attribute"] === 2 ? "rgba(255,0,0,0.8)" : "rgba(255,0,0,0.3)");
+        polygon.setAttribute(
+          "stroke",
+          region["area-attribute"] === 2
+            ? "rgba(255,0,0,0.8)"
+            : "rgba(255,0,0,0.3)"
+        );
         polygon.setAttribute("stroke-width", "2");
-        polygon.setAttribute("stroke-dasharray", region["area-attribute"] === 2 ? "5,5" : "none");
+        polygon.setAttribute(
+          "stroke-dasharray",
+          region["area-attribute"] === 2 ? "5,5" : "none"
+        );
         svg.appendChild(polygon);
       });
-      
+
       // 绘制家具
-      deviceData.furniture?.forEach(furniture => {
-        const points = furniture.points.map(p => 
-          `${(p.x/10) * this.scale},${(p.y/10) * this.scale}`
-        ).join(" ");
-        
-        const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      deviceData.furniture?.forEach((furniture) => {
+        const points = furniture.points
+          .map((p) => `${(p.x / 10) * this.scale},${(p.y / 10) * this.scale}`)
+          .join(" ");
+
+        const polygon = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "polygon"
+        );
         polygon.setAttribute("points", points);
         polygon.setAttribute("fill", "none");
         polygon.setAttribute("stroke", "rgba(255,0,0,0.2)");
@@ -4654,10 +4986,10 @@ export class ApartmentView extends HTMLElement {
         svg.appendChild(polygon);
       });
     });
-    
+
     visualizationLayer.appendChild(svg);
     drawingArea.appendChild(visualizationLayer);
-    
+
     // 3秒后自动移除可视化
     setTimeout(() => {
       visualizationLayer.remove();
@@ -4666,12 +4998,183 @@ export class ApartmentView extends HTMLElement {
 
   // 添加 findRoomAtPoint 方法
   findRoomAtPoint(realX, realY) {
-    return this.rooms.find(room => {
-        return realX >= room.realLeft &&
-               realX <= room.realLeft + room.realWidth &&
-               realY >= room.realTop &&
-               realY <= room.realTop + room.realHeight;
+    return this.rooms.find((room) => {
+      return (
+        realX >= room.realLeft &&
+        realX <= room.realLeft + room.realWidth &&
+        realY >= room.realTop &&
+        realY <= room.realTop + room.realHeight
+      );
     });
+  }
+
+  // 处理数据格式错误事件
+  _handleDataFormatError(event) {
+    const { room_id, message } = event.data;
+    // 查找房间名称
+    const room = this.rooms.find((r) => r.id === room_id);
+    const roomName = room ? room.name : `房间${room_id}`;
+    alert(`${roomName}${message}`);
+  }
+
+  // 检查门是否与其他门或干扰源重叠
+  checkDoorOverlap(doorRect, rotation, doorId) {
+    // 获取根据旋转角度调整后的实际门矩形
+    const doorRealRect = this.getDoorRect(doorRect, rotation);
+    
+    // 检查与其他门的重叠
+    const otherDoors = this.stickers.filter(sticker => 
+        sticker.type === 'door' && sticker.id !== doorId
+    );
+    
+    // 检查与其他门的重叠
+    const hasOverlapWithDoors = otherDoors.some(door => {
+        // 从门的元素中获取旋转角度
+        let doorRotation = 0;
+        if (door.element) {
+            const transform = door.element.style.transform;
+            if (transform) {
+                // 从 transform 样式中提取角度
+                const match = transform.match(/rotate\((-?\d+)deg\)/);
+                if (match) {
+                    doorRotation = parseInt(match[1]);
+                }
+            }
+        }
+
+        // 获取其他门的矩形区域（使用从元素中获取的旋转角度）
+        const otherDoorRect = this.getDoorRect({
+            left: door.realLeft * this.scale,  // 转换为显示尺寸
+            top: door.realTop * this.scale,    // 转换为显示尺寸
+            width: door.realWidth * this.scale, // 转换为显示尺寸
+            height: door.realHeight * this.scale // 转换为显示尺寸
+        }, doorRotation);
+
+        // 检查两个矩形是否重叠
+        return doorRealRect.right > otherDoorRect.left && 
+               doorRealRect.left < otherDoorRect.right && 
+               doorRealRect.top < otherDoorRect.bottom && 
+               doorRealRect.bottom > otherDoorRect.top;
+    });
+
+    // 检查是否与干扰源重叠
+    const interferenceAreas = this.areas.filter(area => 
+        area.type === 'interference-area'
+    );
+
+    const hasOverlapWithInterference = interferenceAreas.some(area => {
+        // 获取干扰源的矩形区域
+        const areaRect = {
+            left: area.realLeft,
+            right: area.realLeft + area.realWidth,
+            top: area.realTop,
+            bottom: area.realTop + area.realHeight
+        };
+
+        // 检查门与干扰源是否重叠
+        return doorRealRect.right > areaRect.left && 
+               doorRealRect.left < areaRect.right && 
+               doorRealRect.top < areaRect.bottom && 
+               doorRealRect.bottom > areaRect.top;
+    });
+
+    // 返回是否与门或干扰源重叠
+    return hasOverlapWithDoors || hasOverlapWithInterference;
+  }
+
+  getDoorRect(doorRect, rotation) {
+    console.log('doorRect---',doorRect,rotation);
+    // 将显示尺寸转换为实际尺寸（厘米）
+    const realRect = {
+        left: Math.round(doorRect.left / this.scale),
+        top: Math.round(doorRect.top / this.scale),
+        width: Math.round(doorRect.width / this.scale),
+        height: Math.round(doorRect.height / this.scale)
+    };
+    
+    // 计算门的中心点
+    const centerX = realRect.left + realRect.width / 2;
+    const centerY = realRect.top + realRect.height / 2;
+
+    // 根据旋转角度计算门的实际矩形区域
+    if (rotation === 90 || rotation === 270) {
+        // 水平放置的门
+        const halfWidth = realRect.height / 2;  // 使用height作为宽度
+        const halfHeight = realRect.width / 2;  // 使用width作为高度
+        
+        return {
+            left: centerX - halfWidth,    // 中心点向左偏移半宽
+            top: centerY - halfHeight,     // 中心点向上偏移半高
+            right: centerX + halfWidth,    // 中心点向右偏移半宽
+            bottom: centerY + halfHeight,   // 中心点向下偏移半高
+            width: realRect.height,        // 实际宽度
+            height: realRect.width         // 实际高度
+        };
+    } else {
+        // 垂直放置的门
+        const halfWidth = realRect.width / 2;
+        const halfHeight = realRect.height / 2;
+        
+        return {
+            left: centerX - halfWidth,     // 中心点向左偏移半宽
+            top: centerY - halfHeight,     // 中心点向上偏移半高
+            right: centerX + halfWidth,    // 中心点向右偏移半宽
+            bottom: centerY + halfHeight,  // 中心点向下偏移半高
+            width: realRect.width,         // 实际宽度
+            height: realRect.height        // 实际高度
+        };
+    }
+  }
+
+  // 在更新贴纸旋转时
+  updateStickerRotation(sticker, rotation) {
+    if (sticker.element) {
+        sticker.element.style.transform = `rotate(${rotation}deg)`;
+        sticker.rotation = rotation; // 保存旋转角度到贴纸数据中
+    }
+  }
+
+  // 检查是否有房间的贴纸数量超过限制
+  checkRoomStickersLimit() {
+      // 统计每个房间的贴纸数量
+      const roomStickerCounts = new Map();
+      
+      // 遍历所有贴纸，统计每个房间的贴纸数量
+      for (const sticker of this.stickers) {
+          // 找到包含该贴纸的房间
+          const room = this.rooms.find(room => {
+              const stickerCenter = {
+                  x: sticker.realLeft + sticker.realWidth / 2,
+                  y: sticker.realTop + sticker.realHeight / 2
+              };
+              
+              return stickerCenter.x >= room.realLeft &&
+                     stickerCenter.x <= room.realLeft + room.realWidth &&
+                     stickerCenter.y >= room.realTop &&
+                     stickerCenter.y <= room.realTop + room.realHeight;
+          });
+
+          if (room) {
+              const currentCount = roomStickerCounts.get(room.id) || 0;
+              roomStickerCounts.set(room.id, currentCount + 1);
+              
+              // 如果发现任何房间超过限制，立即返回该房间信息
+              if (currentCount > 15) {
+                  return {
+                      hasExceeded: true,
+                      room: room,
+                      count: currentCount
+                  };
+              }
+          }
+      }
+      
+      // 如果所有房间都未超过限制
+      return {
+          hasExceeded: false,
+          room: null,
+          count: 0
+      };
   }
 } 
 

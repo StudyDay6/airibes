@@ -13,10 +13,11 @@ from homeassistant.helpers.device_registry import async_get as async_get_device_
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components import persistent_notification
 from .crypto_utils import encrypt_data, decrypt_data
-from .const import DOMAIN, RADAR_CLIFE_PROFILE, STORAGE_VERSION, APARTMENTS_STORAGE_KEY, APARTMENT_DATA_KEY, RADAR_STORAGE_KEY
+from .const import DOMAIN, RADAR_CLIFE_PROFILE, STORAGE_VERSION, APARTMENTS_STORAGE_KEY, APARTMENT_DATA_KEY, RADAR_STORAGE_KEY, EVENT_DATA_FORMAT_ERROR
 from .binary_sensor import RoomBinarySensor
 from homeassistant.helpers.storage import Store
 import pickle
+
 
 _LOGGER = logging.getLogger(__name__)
 class MqttClient:
@@ -30,6 +31,7 @@ class MqttClient:
         self._status_task = None
         self._subscribe_task = None
         self._is_subscribed = False
+        self._is_frontend_visible = False
 
     async def async_setup(self):
         """设置 MQTT 订阅."""
@@ -127,6 +129,7 @@ class MqttClient:
 
                 payload_data = json.loads(payload_str)
                 _LOGGER.info("收到 MQTT 消息: Payload=%s", payload_data)
+
                 # 获取 cmd 字段
                 if 'cmd' in payload_data:
                     cmd = payload_data['cmd']
@@ -152,6 +155,11 @@ class MqttClient:
                 _LOGGER.error("处理消息时出错: %s", str(e))
         else:
             _LOGGER.warning("无效的主题格式: %s", topic)
+
+    def set_apartment_view_visible(self, apartment_id: int, visible: bool):
+        """设置户型视图可见性."""
+        self._is_frontend_visible = visible
+        _LOGGER.info("设置户型视图可见性: %s, %s", apartment_id, visible)
 
     async def _get_radar_sensor(self, entity_id: str):
         """获取雷达传感实体."""
@@ -435,8 +443,9 @@ class MqttClient:
                                 
                             elif key == '13':
                                 # 处理设备信号强度
-                                _LOGGER.info("设备信号强度: device_id=%s, value=%s", device_id, value)
-
+                                _LOGGER.info("设备上报开关状态: device_id=%s, value=%s", device_id, value)
+                                if self._is_frontend_visible and value == 0:
+                                    await self.send_start_cmd(device_id)
                                 
                             elif key == '14':
                                 # 处理设备温度
@@ -472,10 +481,12 @@ class MqttClient:
                                     if value_dict.get('siid') == 13 and value_dict.get('eiid') == 1:
                                         args = value_dict.get('arg', [])
                                         # 每两个元素为一组处理
+                                        index = 0
                                         for i in range(0, len(args), 2):
                                             if i + 1 < len(args):
-                                                area_id = args[i].get('1')
-                                                has_person = args[i + 1].get('11')
+                                                index += 1
+                                                area_id = args[i].get(str(index))
+                                                has_person = args[i + 1].get(str(index + 10))
                                                 if area_id is not None and has_person is not None:
                                                     await self.update_area_status(device_id, area_id, has_person == 1)
                                     elif value_dict.get('siid') == 13 and value_dict.get('eiid') == 3:
@@ -550,31 +561,44 @@ class MqttClient:
                 
                 # # 2. 删除设备相关的所有实体
                 entity_registry = async_get(self.hass)
-                
                 # 删除传感器实体
                 sensor_entity_id = f"sensor.{DOMAIN}_radar_{device_id}"
                 if entity_registry.async_get(sensor_entity_id):
                     entity_registry.async_remove(sensor_entity_id)
                     # 同时从 states 中移除实体状态
                     self.hass.states.async_remove(sensor_entity_id)
-                    _LOGGER.info("已删除传感器实体: %s", sensor_entity_id)
-                
+
                 # 删除开关实体
                 switch_entity_id = f"switch.{DOMAIN}_radar_{device_id}_ap"
                 if entity_registry.async_get(switch_entity_id):
                     entity_registry.async_remove(switch_entity_id)
                     # 同时从 states 中移除实体状态
                     self.hass.states.async_remove(switch_entity_id)
-                    _LOGGER.info("已删除开关实体: %s", switch_entity_id)
-                
+                learn_switch_entity_id = f"{DOMAIN}_radar_{device_id}_learn"
+                if entity_registry.async_get(learn_switch_entity_id):
+                    entity_registry.async_remove(learn_switch_entity_id)
+                    # 同时从 states 中移除实体状态
+                    self.hass.states.async_remove(learn_switch_entity_id)
+
                 # 删除选择实体
                 select_entity_id = f"select.{DOMAIN}_radar_{device_id}_level"
                 if entity_registry.async_get(select_entity_id):
                     entity_registry.async_remove(select_entity_id)
                     # 同时从 states 中移除实体状态
                     self.hass.states.async_remove(select_entity_id)
-                    _LOGGER.info("已删除选择实体: %s", select_entity_id)
-                
+
+                # 删除按钮实体
+                button_entity_id = f"{DOMAIN}_radar_{device_id}_learn"
+                if entity_registry.async_get(button_entity_id):
+                    entity_registry.async_remove(button_entity_id)
+                    # 同时从 states 中移除实体状态
+                    self.hass.states.async_remove(button_entity_id)
+                button_entity_id1 = f"{DOMAIN}_radar_{device_id}_learn1"
+                if entity_registry.async_get(button_entity_id1):
+                    entity_registry.async_remove(button_entity_id1)
+                    # 同时从 states 中移除实体状态
+                    self.hass.states.async_remove(button_entity_id1)
+                    
                 # 3. 从 hass.data 中删除设备相关数据
                 if device_id in self.hass.data[DOMAIN].get("sensors", {}):
                     del self.hass.data[DOMAIN]["sensors"][device_id]
@@ -749,21 +773,22 @@ class MqttClient:
         sub_data = {"msgId": 55, "siid": 5, "aiid": 1, "in": [{"5": value}]}
         await self._sender_method_data(device_id, sub_data)
 
-    # 发送单个设备的户型数据.
+    # 发送学习命令
+    async def send_learning_command(self, device_id: str, learn_type: int, value: bool):
+        _LOGGER.info("发送学习命令: %s, %s, %s", device_id, learn_type, value)
+        if learn_type == 1:
+            sub_data = {"params": [{"58": 1 if value else 0}]}
+        elif learn_type == 2:
+            sub_data = {"params": [{"68": 1 if value else 0}]}
+        await self._sender_profile_data(device_id, sub_data)
+
+    # 发送单个设备的户型数据
     async def send_single_device_apartment_data(self, device_id: str, device_data: dict) -> bool:
-        """发送单个设备的户型数据.
-        
-        Args:
-            device_id: 设备ID
-            device_data: 设备的户型数据
-            
-        Returns:
-            bool: 发送是否成功
-        """
+        """发送单个设备的户型数据."""
         try:
             _LOGGER.info('mqtt -- 开始发送设备户型数据: device_id=%s', device_id)
             
-            # 构造单个设备的据
+            # 构造单个设备的数据
             room_data = {"params": [{"61": json.dumps(device_data, separators=(',', ':'))}]}
             
             # 发送数据并等待响应
@@ -776,11 +801,21 @@ class MqttClient:
                     await self._sender_profile_data(device_id, room_data)
                     
                     # 等待响应
-                    response = await self._wait_for_response(device_id, timeout=60)
+                    response = await self._wait_for_response(device_id, timeout=30)
                     
                     if response and response.get('cmd') == 2006 and response.get('key') == 74:
-                        _LOGGER.info('mqtt -- 设备 %s 户型数据发送成功', device_id)
-                        success = True
+                        value = response.get('value')
+                        if value == '0':
+                            _LOGGER.error('mqtt -- 设备 %s 户型数据发送失败: 数据格式有误', device_id)
+                            # 发送事件通知前端
+                            self.hass.bus.async_fire(EVENT_DATA_FORMAT_ERROR, {
+                                "room_id": device_data.get('room_id'),
+                                "message": "户型数据格式有误"
+                            })
+                            return False
+                        else:
+                            _LOGGER.info('mqtt -- 设备 %s 户型数据发送成功 -- %s', device_id, value)
+                            return True
                     else:
                         _LOGGER.warning('mqtt -- 设备 %s 户型数据响应异常: %s', device_id, response)
                         retry_count += 1
@@ -924,7 +959,7 @@ class MqttClient:
             cmd_data = {"params": [{"13": 1}]}  # 开启命令
             await self._sender_profile_data(device_id, cmd_data)
             _LOGGER.info(f"发送开启命令到设备 {device_id}")
-            await self._sender_for_status_cmd(device_id, [74])
+            await self._sender_for_status_cmd(device_id, [74, 76])
         except Exception as e:
             _LOGGER.error(f"发送开启命令失败: {str(e)}")
 

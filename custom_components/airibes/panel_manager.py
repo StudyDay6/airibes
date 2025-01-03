@@ -69,6 +69,7 @@ class PanelManager:
             StaticPathConfig(DEVICE_IMPORT_CSS_URL, os.path.join(STATIC_PATH, "device-import.css"), True),
             StaticPathConfig("/frontend_static/translations.js", os.path.join(STATIC_PATH, "translations.js"), True),
             StaticPathConfig("/frontend_static/constants.js", os.path.join(STATIC_PATH, "constants.js"), True),
+            StaticPathConfig("/frontend_static/learning-dialog.js", os.path.join(STATIC_PATH, "learning-dialog.js"), True),
         ]
 
         # 使用新的异步方法一次性注册所有静态路径
@@ -79,6 +80,7 @@ class PanelManager:
         add_extra_js_url(self.hass, APARTMENT_SCRIPT_URL)
         add_extra_js_url(self.hass, "/frontend_static/apartment-card.js")
         add_extra_js_url(self.hass, "/frontend_static/preview-dialog.js")
+        add_extra_js_url(self.hass, "/frontend_static/learning-dialog.js")
 
     async def _register_panels(self) -> None:
         """注册面板."""

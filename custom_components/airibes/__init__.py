@@ -23,6 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "sensors": {},  # 存储雷达传感器实体
         "selects": {},  # 存储选择器实体
         "switches": {}, # 存储开关实体
+        "buttons": {}, # 存储按钮实体
         "room_sensors": {},  # 存储房间传感器实体
         "area_sensors": {},  # 添加区域传感器存储
     }

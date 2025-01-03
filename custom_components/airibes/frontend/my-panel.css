@@ -28,7 +28,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #e4eafe;
+  background: #355979;
   border-radius: 4px;
   margin-top: 16px;
 }
@@ -139,13 +139,14 @@ canvas {
 
 .device-element {
     position: absolute;
-    width: 30px !important;  /* 固定宽度 */
-    height: 30px !important;  /* 固定高度 */
+    width: 24px !important;  /* 固定宽度 */
+    height: 24px !important;  /* 固定高度 */
     display: flex;
     align-items: center;
     justify-content: center;
     transform-origin: center center;
     z-index: 2;
+    cursor: pointer;
     pointer-events: auto;
 }
 

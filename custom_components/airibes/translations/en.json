@@ -15,7 +15,11 @@
     "entity": {
         "sensor": {
             "airibes": {
-                "name": "Radar"
+                "name": "Radar",
+                "state": {
+                    "online": "Online",
+                    "offline": "Offline"
+                }
             }
         },
         "select": {
@@ -33,7 +37,9 @@
         },
         "button": {
             "airibes": {
-                "learn": "Learning"
+                "learn": "Learning",
+                "device_offline": "Device is offline, please turn on the device before learning",
+                "device_offline_title": "Device is offline"
             }
         }
     },

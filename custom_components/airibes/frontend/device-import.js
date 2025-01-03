@@ -1,3 +1,4 @@
+import { getTranslationValue } from './translations.js';
 if (!customElements.get('device-import')) {
   customElements.define(
     "device-import",
@@ -51,7 +52,7 @@ if (!customElements.get('device-import')) {
                                 class="back-button" 
                                 id="back-btn">
                                 <ha-icon icon="mdi:chevron-left"></ha-icon>
-                                设备导入
+                                ${getTranslationValue('device_import', this._hass?.language || 'en')}
                             </mwc-button>
                         </div>
                     </div>
@@ -61,12 +62,12 @@ if (!customElements.get('device-import')) {
                                 <div class="col-checkbox">
                                     <input type="checkbox" id="selectAll">
                                 </div>
-                                <div class="col-index">序号</div>
-                                <div class="col-name">设备名称</div>
-                                <div class="col-icon">图标</div>
-                                <div class="col-id">实体标识</div>
-                                <div class="col-room">所属房间</div>
-                                <div class="col-status">状态</div>
+                                <div class="col-index">${getTranslationValue('serial_number', this._hass?.language || 'en')}</div>
+                                <div class="col-name">${getTranslationValue('device_name', this._hass?.language || 'en')}</div>
+                                <div class="col-icon">${getTranslationValue('icon', this._hass?.language || 'en')}</div>
+                                <div class="col-id">${getTranslationValue('entity_id', this._hass?.language || 'en')}</div>
+                                <div class="col-room">${getTranslationValue('room_location', this._hass?.language || 'en')}</div>
+                                <div class="col-status">${getTranslationValue('status', this._hass?.language || 'en')}</div>
                             </div>
                             <div class="table-body" id="entityGrid">
                                 <!-- 实体列表将在这里动态生成 -->
@@ -75,14 +76,14 @@ if (!customElements.get('device-import')) {
                     </div>
                     <div class="footer-content">
                         <div class="footer-left">
-                            已选择 <span id="selectedCount">0</span> 项
+                            ${getTranslationValue('selected', this._hass?.language || 'en')} <span id="selectedCount">0</span> ${getTranslationValue('items', this._hass?.language || 'en')}
                         </div>
                         <div class="footer-right">
                             <mwc-button 
                                 raised
                                 class="import-button" 
                                 id="importBtn">
-                                导入
+                                ${getTranslationValue('import', this._hass?.language || 'en')}
                             </mwc-button>
                         </div>
                     </div>
@@ -139,7 +140,7 @@ if (!customElements.get('device-import')) {
                     name: state.attributes.friendly_name || entityId,
                     state: state.state,
                     icon: state.attributes.icon,
-                    room: state.attributes.room || '未分配',
+                    room: state.attributes.room || getTranslationValue('unassigned', this._hass?.language || 'en'),
                     imported: importedDevices.has(entityId)  // 标记是否已导入
                 }));
 
@@ -177,7 +178,7 @@ if (!customElements.get('device-import')) {
                     <div class="col-room">${entity.room}</div>
                     <div class="col-status">
                         <span class="status-text ${entity.imported ? 'imported' : ''}">
-                            ${entity.imported ? '已导入' : this._hass.states[entity.entity_id]?.state || 'unknown'}
+                            ${entity.imported ? getTranslationValue('imported', this._hass?.language || 'en') : this._hass.states[entity.entity_id]?.state || 'unknown'}
                         </span>
                     </div>
                 </div>
@@ -244,11 +245,11 @@ if (!customElements.get('device-import')) {
                 <div class="dialog">
                     <div class="dialog-title">确认导入</div>
                     <div class="dialog-content">
-                        确定将选中的 ${this.selectedEntities.size} 项导入到设备库吗？
+                         ${getTranslationValue('confirm_selected', this._hass?.language || 'en')} ${this.selectedEntities.size} ${getTranslationValue('item_import_devices', this._hass?.language || 'en')}？
                     </div>
                     <div class="dialog-buttons">
-                        <mwc-button outlined id="cancelBtn">取消</mwc-button>
-                        <mwc-button raised id="confirmBtn">确认</mwc-button>
+                        <mwc-button outlined id="cancelBtn">${getTranslationValue('cancel', this._hass?.language || 'en')}</mwc-button>
+                        <mwc-button raised id="confirmBtn">${getTranslationValue('confirm', this._hass?.language || 'en')}</mwc-button>
                     </div>
                 </div>
             `;
@@ -270,7 +271,7 @@ if (!customElements.get('device-import')) {
                     });
 
                     // 显示成功提示
-                    this._showToast('导入成功');
+                    this._showToast(getTranslationValue('import_success', this._hass?.language || 'en'));
                     
                     // 关闭弹框
                     dialog.remove();
@@ -279,7 +280,7 @@ if (!customElements.get('device-import')) {
                     window.location.pathname = '/airibes_device_library';
                 } catch (error) {
                     console.error('导入设备失败:', error);
-                    this._showToast('导入失败');
+                    this._showToast(getTranslationValue('import_failed', this._hass?.language || 'en'));
                 }
             });
 

@@ -6,6 +6,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.storage import Store
+from .utils import get_translation_key
 import logging
 from .const import DOMAIN,RADAR_STORAGE_KEY
 
@@ -85,13 +86,13 @@ class RadarSensor(SensorEntity):
         self._attr_unique_id = f"radar_sensor_{device_id}"
         self._device_id = device_id
         self._is_on = is_on
-        self._attr_native_value = "离线"
+        self._attr_native_value = get_translation_key("entity.sensor.airibes.state.offline")
         self.hass = None
 
         # 设备信息
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device_id)},
-            name=name,
+            name=get_translation_key("entity.sensor.airibes.name"),
             manufacturer="H&T",
             model="Radar Sensor",
             sw_version="1.0",
@@ -140,8 +141,8 @@ class RadarSensor(SensorEntity):
     def set_online_status(self, is_on: bool) -> None:
         """Set the device online status."""
         self._is_on = is_on
-        self._attr_native_value = "在线" if is_on else "离线"
+        self._attr_native_value = get_translation_key("entity.sensor.airibes.state.online") if is_on else get_translation_key("entity.sensor.airibes.state.offline")
 
     async def async_update(self) -> None:
         """Fetch new state data for the sensor."""
-        self._attr_native_value = "在线" if self._is_on else "离线"
+        self._attr_native_value = get_translation_key("entity.sensor.airibes.state.online") if self._is_on else get_translation_key("entity.sensor.airibes.state.offline")
