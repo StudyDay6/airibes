@@ -11,11 +11,5 @@
   ],
   "iot_class": "local_polling",
   "config_flow": true,
-  "quality_scale": "silver",
-  "translations": {
-    "en": "translations/en.json",
-    "fr": "translations/fr.json",
-    "zh_Hans": "translations/zh_Hans.json",
-    "de": "translations/de.json"
-  }
+  "quality_scale": "silver"
 } 
