@@ -1,15 +1,15 @@
 {
   "domain": "airibes",
   "name": "Airibes",
-  "version": "1.0.0",
-  "documentation": "https://github.com/StudyDay6/airibes",
-  "issue_tracker": "https://github.com/StudyDay6/airibes/issues", 
-  "dependencies": ["frontend", "mqtt", "http"],
   "codeowners": ["@StudyDay6"],
+  "config_flow": true,
+  "dependencies": ["frontend", "mqtt", "http"],
+  "documentation": "https://github.com/StudyDay6/airibes",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/StudyDay6/airibes/issues",
+  "quality_scale": "silver",
   "requirements": [
     "aiofiles"
   ],
-  "iot_class": "local_polling",
-  "config_flow": true,
-  "quality_scale": "silver"
+  "version": "1.0.0"
 } 
