@@ -11,6 +11,7 @@
     height: 100vh;
     padding: 0;
     margin: 0;
+    position: relative;
     overflow: hidden;
 }
 
@@ -258,4 +259,314 @@ canvas {
 
 .delete-button ha-icon {
     margin-right: 4px;
+}
+
+/* 更新更多按钮和下拉菜单的样式 */
+.more-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 0px 16px;
+    cursor: pointer;
+    background: var(--primary-color);
+    border-radius: 4px;
+    color: var(--text-primary-color);
+    margin-left: 8px;
+    height: 36px;
+    z-index: 1000;
+}
+
+.more-button ha-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--card-background-color);
+    border-radius: 4px;
+    box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.2));
+    display: none;
+    z-index: 1001;
+    min-width: 150px;
+    border: 1px solid var(--divider-color);
+    margin-top: 4px;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--primary-text-color);
+    display: flex;
+    align-items: center;
+    user-select: none;
+    gap: 8px;
+}
+
+.dropdown-item ha-icon {
+    width: 20px;
+    height: 20px;
+    --mdc-icon-size: 20px;
+    color: var(--primary-text-color);
+}
+
+.dropdown-item span {
+    flex: 1;
+}
+
+.dropdown-item:hover {
+    background: var(--secondary-background-color);
+}
+
+/* 确保下拉菜单在其他元素之上 */
+.header-buttons {
+    position: relative;
+}
+
+/* 确保更多按钮和下拉菜单在其他元素之上 */
+.more-button, .dropdown-menu {
+    z-index: 1000;
+}
+
+/* 雷达校准弹框样式 */
+.calibration-dialog {
+    position: absolute;
+    bottom: 0;
+    left: 16px;
+    right: 16px;
+    margin-bottom: 16px;
+    background: var(--card-background-color);
+    border-radius: 12px;
+    box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.2));
+    transform: translateY(150%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 1002;
+}
+
+.calibration-dialog.show {
+    transform: translateY(0);
+}
+
+.dialog-content {
+    padding: 10px;
+    height: 80px;
+    overflow-y: auto;
+    background: var(--card-background-color);
+    border-radius: 12px;
+}
+
+.dialog-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dialog-header .close-button {
+    margin-left: auto;
+}
+
+.dialog-header span {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.close-button {
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.close-button:hover {
+    background: var(--secondary-background-color);
+}
+
+/* 遮罩层 */
+/* .calibration-dialog::before {
+    content: '';
+    position: absolute;
+    top: -100vh;
+    left: -100vw;
+    right: -100vw;
+    bottom: -100vh;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    z-index: -1;
+} */
+
+.calibration-dialog.show::before {
+    opacity: 1;
+}
+
+/* 校准提示样式 */
+.calibration-tip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    text-align: center;
+    color: var(--primary-text-color);
+    min-height: 40px;
+    flex-wrap: wrap;  /* 允许内容换行 */
+}
+
+.calibration-tip ha-icon {
+    --mdc-icon-size: 24px;
+    color: var(--info-color, var(--primary-color));
+}
+
+/* 开始校准按钮样式 */
+.start-calibration-button {
+    margin-left: 16px;
+    --mdc-theme-primary: var(--primary-color);
+}
+
+.door-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.door-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.door-number-button {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    background-color: #1976D2;
+    color: white;
+    margin: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+    user-select: none;
+}
+
+.door-number-button:hover {
+    background-color: #1565C0;
+}
+
+.door-number-button.selected {
+    background-color: #2196F3;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 1px solid #c5d9f0;
+}
+
+.calibration-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.help-text {
+    color: var(--primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    margin-left: auto;
+}
+
+.help-text:hover {
+    text-decoration: underline;
+}
+
+.calibration-help-content {
+    padding: 16px;
+    line-height: 1.5;
+    color: var(--primary-text-color);
+}
+
+/* 确保帮助图标垂直居中 */
+.help-text ha-icon {
+    --mdc-icon-size: 18px;
+    color: var(--primary-color);
+}
+
+.calibration-help-link {
+    color: var(--primary-color);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 8px;
+}
+
+.calibration-help-link:hover {
+    opacity: 0.8;
+}
+
+.calibration-help-dialog {
+    padding: 16px;
+    color: var(--primary-text-color);
+}
+
+.calibration-help-dialog p {
+    margin: 0;
+    white-space: pre-line;
+    line-height: 1.6;
+}
+
+.dialog-button-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 32px;
+}
+
+.dialog-button-container mwc-button {
+    --mdc-theme-primary: var(--primary-color);
+}
+
+/* 调整确定按钮样式 */
+.calibration-help-dialog mwc-button {
+    --mdc-theme-primary: var(--primary-color);
+    margin-top: 16x;
+    display: flex;
+}
+
+/* 调整 ha-dialog 的样式 */
+ha-dialog {
+    --dialog-z-index: 1003;  /* 确保比其他元素的 z-index 高 */
+    position: relative;
+    z-index: var(--dialog-z-index);
+}
+
+/* 调整 ha-dialog 的遮罩层样式 */
+ha-dialog::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: calc(var(--dialog-z-index) - 1);
+}
+
+/* 确保对话框内容在遮罩层之上 */
+ha-dialog > * {
+    position: relative;
+    z-index: var(--dialog-z-index);
+}
+
+/* 调整其他元素的 z-index */
+.calibration-dialog {
+    z-index: 1002;
 }

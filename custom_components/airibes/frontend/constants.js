@@ -310,13 +310,20 @@ export const STICKER_TYPES = {
     speaker: {
         icon: 'mdi:speaker',
         name: '音箱',
-        width: 30,
+        width: 34,
         height: 30,
         getSvg: () => `
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                <rect x="30" y="30" width="40" height="40" fill="currentColor"/>
-                <circle cx="50" cy="50" r="10" fill="#fff" opacity="0.3"/>
-            </svg>`
+            <svg width="34px" height="30px" viewBox="0 0 34 30" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>m_音响</title>
+    <g id="03-Pages" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.5" stroke-opacity="0.402862762">
+        <g id="0切图" transform="translate(-1063.000000, -286.000000)" stroke="#FFFFFF">
+            <g id="m_音响" transform="translate(1063.000000, 286.000000)">
+                <rect id="矩形" stroke-width="1.6" fill-opacity="0.1" fill="#FFFFFF" x="0.8" y="0.8" width="32.4" height="28.4" rx="2"></rect>
+                <path d="M8,7 L26,7 C26.5522847,7 27,7.44771525 27,8 L27,22 C27,22.5522847 26.5522847,23 26,23 L8,23 C7.44771525,23 7,22.5522847 7,22 L7,8 C7,7.44771525 7.44771525,7 8,7 Z" id="矩形备份-13" stroke-width="1.2"></path>
+            </g>
+        </g>
+    </g>
+</svg>`
     },
     fan: {
         icon: 'mdi:fan',

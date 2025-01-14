@@ -37,14 +37,12 @@ class MqttClient:
         """设置 MQTT 订阅."""
         try:
             if not self.hass.data.get("mqtt"):
-                _LOGGER.error("MQTT 组件未加载")
                 return False
 
             self._subscribe_task = asyncio.create_task(self._maintain_subscription())
             return True
 
         except Exception as e:
-            _LOGGER.error("MQTT 设置失败: %s", str(e))
             return False
 
     async def _maintain_subscription(self):
@@ -56,7 +54,6 @@ class MqttClient:
             try:
                 if not self._is_subscribed:
                     upward_topic = f"{self.base_topic}/+/upward"
-                    _LOGGER.info("正在订阅 MQTT 主题: %s", upward_topic)
                     
                     try:
                         await mqtt.async_subscribe(
@@ -66,13 +63,11 @@ class MqttClient:
                             qos=0
                         )
                         self._is_subscribed = True
-                        _LOGGER.info("MQTT 订阅成功")
+                        _LOGGER.debug("MQTT 订阅成功")
                     except Exception as e:
-                        _LOGGER.warning("MQTT 订阅失败: %s, %d 秒后重试", str(e), retry_interval)
                         self._is_subscribed = False
 
                 if self._is_subscribed and not self.hass.data.get("mqtt"):
-                    _LOGGER.warning("MQTT 组件不可用，标记为未订阅")
                     self._is_subscribed = False
 
                 if not self._is_subscribed:
@@ -81,10 +76,10 @@ class MqttClient:
                     await asyncio.sleep(60)
 
             except asyncio.CancelledError:
-                _LOGGER.info("MQTT 订阅维护任务被取消")
+                _LOGGER.debug("MQTT 订阅维护任务被取消")
                 break
             except Exception as e:
-                _LOGGER.error("MQTT 订阅维护任务出错: %s", str(e))
+                _LOGGER.debug("MQTT 订阅维护任务出错: %s", str(e))
                 await asyncio.sleep(retry_interval)
 
     async def async_stop(self):
@@ -112,9 +107,8 @@ class MqttClient:
 
         # 首先验证主题是否包含基础主题
         if not topic.startswith(self.base_topic):
-            _LOGGER.warning("收到未知主题的消息: %s", topic)
             return
-        _LOGGER.info("收到 MQTT 消息: %s", topic)
+        _LOGGER.debug("收到 MQTT 消息: %s", topic)
         # 解析主题获取 device_id
         topic_parts = topic.split('/')
         if len(topic_parts) == 5:  # 确保主题格式正确
@@ -128,38 +122,36 @@ class MqttClient:
                     payload_str = payload
 
                 payload_data = json.loads(payload_str)
-                _LOGGER.info("收到 MQTT 消息: Payload=%s", payload_data)
+                _LOGGER.debug("收到 MQTT 消息: Payload=%s", payload_data)
 
                 # 获取 cmd 字段
                 if 'cmd' in payload_data:
                     cmd = payload_data['cmd']
-                    _LOGGER.info("收到 MQTT 消息: DeviceId=%s, Topic=%s, Cmd=%s, Payload=%s", 
-                                device_id, topic, cmd, payload_data)
                     # 处理不同的 cmd
                     if cmd == 2004:
+                        # 处理 cmd 2004 消息
                         await self._handle_cmd_2004(device_id, payload_data)
                     elif cmd == 2006:
-                        _LOGGER.info("处理 cmd 2006 消息")
+                        # 处理 cmd 2006 消息
                         await self._handle_cmd_2006(device_id, payload_data)
                     elif cmd == 2012:
-                        _LOGGER.info("处理 cmd 2012 消息")
+                        # 处理 cmd 2012 消息
                         await self._handle_cmd_2012(device_id, payload_data)
                     elif cmd == 2014:
-                        _LOGGER.info("处理 cmd 2014 消息")
+                        # 处理 cmd 2014 消息
                         await self._handle_cmd_2014(device_id, payload_data)
                 else:
-                    _LOGGER.warning("消息中缺少 cmd 字段: %s", payload_str)
+                    _LOGGER.debug("消息中缺少 cmd 字段: %s", payload_str)
             except json.JSONDecodeError as e:
-                _LOGGER.error("JSON 解析失败: %s, Payload: %s", str(e), payload)
+                _LOGGER.debug("JSON 解析失败: %s, Payload: %s", str(e), payload)
             except Exception as e:
-                _LOGGER.error("处理消息时出错: %s", str(e))
+                _LOGGER.debug("处理消息时出错: %s", str(e))
         else:
-            _LOGGER.warning("无效的主题格式: %s", topic)
+            _LOGGER.debug("无效的主题格式: %s", topic)
 
     def set_apartment_view_visible(self, apartment_id: int, visible: bool):
         """设置户型视图可见性."""
         self._is_frontend_visible = visible
-        _LOGGER.info("设置户型视图可见性: %s, %s", apartment_id, visible)
 
     async def _get_radar_sensor(self, entity_id: str):
         """获取雷达传感实体."""
@@ -183,7 +175,6 @@ class MqttClient:
             )
             
             if existing_sensor:
-                _LOGGER.info("设备已存在，更新状态: %s", device_id)
                 # 更新传感器状态为在线
                 # await self._handle_device_status(device_id, 1)  # 1 表示在线
                 await self._sender_for_all_status_cmd(device_id)
@@ -204,7 +195,6 @@ class MqttClient:
                 if sensor and select and switch and button:
                     # 设置设备初始状态为在线
                     await self._handle_device_status(device_id, 1)  # 1 表示在线
-                    _LOGGER.info("成功创建新设备: %s", device_id)
                     return True
                     
             _LOGGER.error("创建设备失败: %s", device_id)
@@ -219,9 +209,7 @@ class MqttClient:
         try:
             plaintext = payload.get('data')
             msg_id = payload.get('msgId')
-            
-            _LOGGER.info('clife --- %s', plaintext)
-            
+                        
             if plaintext:
                 # 注册雷达设备
                 if await self._register_radar_device(device_id):
@@ -251,9 +239,7 @@ class MqttClient:
 
     async def _handle_device_status(self, device_id: str, value: int):
         """处理设备状态数据."""
-        try:
-            _LOGGER.info("处理设备状态数据: device_id=%s, value=%s", device_id, value)
-            
+        try:            
             # 更新传感器状态
             entity_id = f"sensor.{DOMAIN}_radar_{device_id}"
             state = "在线" if value == 1 else "离线"
@@ -273,8 +259,7 @@ class MqttClient:
             sensor = self.hass.data[DOMAIN].get("sensors", {}).get(device_id)
             if sensor and hasattr(sensor, 'set_online_status'):
                 sensor.set_online_status(value == 1)
-                _LOGGER.info("已更新设实体状态: %s -> %s", device_id, value == 1)
-            
+
             # 发送状态更新事件，用于前端更新
             self.hass.bus.async_fire(
                 f"{DOMAIN}_device_status_update",
@@ -284,19 +269,16 @@ class MqttClient:
                 }
             )
             
-            _LOGGER.info("设备状态已更新: %s -> %s", entity_id, state)
         except Exception as e:
             _LOGGER.error("处理设备状态数据失败: %s", str(e))
 
     async def _handle_cmd_2006(self, device_id: str, payload: dict):
         """处理 cmd 2006 的消息."""
-        _LOGGER.info("收到 cmd 2006 消息数据--- %s", payload)
          # 获取设备实体ID
         entity_id = f"sensor.airibes_radar_{device_id.lower()}"
         
         # 获取设备当前状态
         entity_state = self.hass.states.get(entity_id)
-        _LOGGER.info("设备 %s 当前状态: %s", device_id, entity_state)
         if entity_state is None or entity_state.state != "在线":
             # 设备离线时才更新状态
             await self._handle_device_status(device_id, 1)
@@ -311,14 +293,12 @@ class MqttClient:
                 else:
                     data_json = decrypted_data
                     
-                _LOGGER.info("收到加密数据: %s", data_json)
                 if 'params' in data_json:
                     for param in data_json['params']:
                         for key, value in param.items():
                             if key == '74':
                                 # 只有在等待响应（有回调函数）才处理响应
                                 if hasattr(self, '_response_callbacks') and device_id in self._response_callbacks:
-                                    _LOGGER.info("收到发送数据的响应: %s", value)
                                     callback = self._response_callbacks[device_id]
                                     # 直接传递原始响应数据
                                     callback({
@@ -328,9 +308,7 @@ class MqttClient:
                                     })
                                 else:
                                     # 设备主动推送的数据，处理同步
-                                    _LOGGER.info("收到设备主动推送的74数据: %s", value)
                                     if not isinstance(value, str) or "HASS_" not in value:
-                                        _LOGGER.info("忽略非字符串或不包含HASS_的数据: %s", value)
                                         continue
                                     await self.sync_apartment_data(device_id, value)
                                 # 发送共同出入口id数据
@@ -340,7 +318,6 @@ class MqttClient:
                                     # 处理转义的 JSON 字符串
                                     value = value.replace('\\"', '"')  # 替换转义的双引号
                                     positions = json.loads(value)
-                                    _LOGGER.info("收到人员位置数据 key=%s: %s", key, positions)
                                     
                                     # 获取当前设备的所有位置数据
                                     if not hasattr(self, '_person_positions'):
@@ -351,7 +328,6 @@ class MqttClient:
                                     # 如果是key 76且收到空列表，直接清空并更新
                                     if key == '76' and not positions:
                                         self._person_positions[device_id] = []
-                                        _LOGGER.info("清空设备 %s 的人员位置数据", device_id)
                                     else:
                                         # 如果是key 76，先清空现数据
                                         if key == '76':
@@ -405,11 +381,10 @@ class MqttClient:
                                 await self._handle_device_status(device_id, value)
                             elif key == '7':
                                 # 处理设备本信息
-                                _LOGGER.info("设备版本信息: device_id=%s, value=%s", device_id, value)
+                                pass
                                 
                             elif key == '8':
                                 # 更新灵敏度选择实体
-                                _LOGGER.info("灵敏度数据: device_id=%s, value=%s", device_id, value)
                                 select_entity_id = f"select.{DOMAIN}_radar_{device_id}_level"
                                 
                                 # 获取选择实体对象
@@ -421,9 +396,6 @@ class MqttClient:
                                     
                                     if new_option and new_option != select.current_option:
                                         await select.async_select_option(new_option)
-                                        _LOGGER.info("更新雷达灵敏度: %s -> %s", select_entity_id, new_option)
-                                    else:
-                                        _LOGGER.info("雷达灵敏度无需更新: %s 已经是 %s", select_entity_id, new_option or "未知值")
                                         
                             elif key == '9':
                                 # 处理设备工作模式
@@ -442,8 +414,7 @@ class MqttClient:
                                 _LOGGER.info("设备电池电量: device_id=%s, value=%s", device_id, value)
                                 
                             elif key == '13':
-                                # 处理设备信号强度
-                                _LOGGER.info("设备上报开关状态: device_id=%s, value=%s", device_id, value)
+                                # 处理设备上报开关状态
                                 if self._is_frontend_visible and value == 0:
                                     await self.send_start_cmd(device_id)
                                 
@@ -457,7 +428,6 @@ class MqttClient:
 
                             elif key == '16':
                                 # 更新 AP 开关状态
-                                _LOGGER.info("AP开关状态: device_id=%s, value=%s", device_id, value)
                                 switch_entity_id = f"switch.{DOMAIN}_radar_{device_id}_ap"
                                 # 获取开关实体对象
                                 switch = self.hass.data[DOMAIN].get("switches", {}).get(device_id)
@@ -470,9 +440,6 @@ class MqttClient:
                                         switch._is_on = new_state
                                         # 通知 Home Assistant 状态已更新
                                         switch.async_write_ha_state()
-                                        _LOGGER.info("更新 AP 开关状态: %s -> %s", switch_entity_id, "on" if new_state else "off")
-                                    else:
-                                        _LOGGER.info("AP 开关状态无需更新: %s 已经是 %s", switch_entity_id, "on" if new_state else "off")
                                         
                             elif key == '17':
                                 _LOGGER.info('mqtt -- 事件数据状态: %s', value)
@@ -530,6 +497,22 @@ class MqttClient:
                             elif key == '73':
                                 # 方法回复数据
                                 _LOGGER.info("方法回复数据: %s", value)
+                                # 方法回复数据: {"msgId":77,"siid":12,"aiid":1,"code":0,"out":[{"6":false}]}
+                                value_dict = json.loads(value) if isinstance(value, str) else value
+                                _LOGGER.info("校验 -- 方法回复数据0000: %s", value_dict)
+                                if value_dict.get('siid') == 12 and value_dict.get('aiid') == 1:
+                                    if value_dict.get('out') and value_dict.get('out')[0].get('6') is not None:
+                                        #校验结果
+                                        calibration_result = value_dict.get('out')[0].get('6')
+                                        _LOGGER.info("方法回复数据--校验结果: %s", calibration_result)
+                                        # 发送状态更新事件，用于前端更新
+                                        self.hass.bus.async_fire(
+                                            f"{DOMAIN}_device_calibration_result",
+                                            {
+                                                "device_id": device_id,
+                                                "result": calibration_result
+                                            }
+                                        )   
                             else:
                                 _LOGGER.info("未知 Key %s 数据: %s", key, value)
                 else:
@@ -602,15 +585,12 @@ class MqttClient:
                 # 3. 从 hass.data 中删除设备相关数据
                 if device_id in self.hass.data[DOMAIN].get("sensors", {}):
                     del self.hass.data[DOMAIN]["sensors"][device_id]
-                    _LOGGER.info("已从 hass.data 中删除传感器: %s", device_id)
                 
                 if device_id in self.hass.data[DOMAIN].get("switches", {}):
                     del self.hass.data[DOMAIN]["switches"][device_id]
-                    _LOGGER.info("已从 hass.data 中删除开关: %s", device_id)
                     
                 if device_id in self.hass.data[DOMAIN].get("selects", {}):
                     del self.hass.data[DOMAIN]["selects"][device_id]
-                    _LOGGER.info("已从 hass.data 中删除选择器: %s", device_id)
                     
                 # 4. 从设备注册表中删除设备
                 device_registry = dr.async_get(self.hass)
@@ -619,7 +599,6 @@ class MqttClient:
                 )
                 if device_entry:
                     device_registry.async_remove_device(device_entry.id)
-                    _LOGGER.info("已从设备注册表中删除设备: %s", device_id)
 
                 # 删除户型数据中的设备
                 await self.delete_apart_device(device_id)
@@ -627,16 +606,24 @@ class MqttClient:
                 # 5. 强制刷新实体注册表
                 # await entity_registry.async_load()
                 await self.publish_empty_message(device_id)
-                
+
+                # 6. 通知前端刷新
+                self.hass.bus.async_fire(
+                    f"{DOMAIN}_device_removed",
+                    {
+                        "device_id": device_id
+                    }
+                ) 
+                # 强制刷新实体注册表以确保实体列表更新
+                await entity_registry.async_load()
             else:
-                _LOGGER.warning("设备 %s 不在存储中", device_id)
+                _LOGGER.debug("设备 %s 不在存储中", device_id)
                 
         except Exception as e:
             _LOGGER.error("处理设备删除失败: %s", str(e))
 
     async def _handle_cmd_2014(self, device_id: str, payload: dict):
         """处理 cmd 2014 的消息."""
-        _LOGGER.info("收到 cmd 2014 消息: %s", payload)
         # 收到遗嘱表明设备状态已离线
         await self._handle_device_status(device_id, 0)
         # 清空此设备的人员位置数据
@@ -650,23 +637,19 @@ class MqttClient:
 
     # 发送获取全部状态数据 （所有设备）
     async def _sender_for_all_status_cmd(self, device_id: str):
-        _LOGGER.info("发送获取全部状态数据 -")
         await self._sender_for_status_cmd(device_id, [])
 
     async def _sender_for_status_cmd(self, device_id: str, status: list):
-        _LOGGER.info("发送获取状态数据 -")
         self.sender_msgId += 1  # 递增消息ID
         await self._async_data_publish(device_id, 2009, 2, self.sender_msgId, {"params": status})
 
     #发送属性数据
     async def _sender_profile_data(self, device_id: str, data: dict):
-        _LOGGER.info("发送性数据 --- %s", data)
         self.sender_msgId += 1  # 递增消息ID
         await self._async_data_publish(device_id, 2011, 1, self.sender_msgId, data)
 
     #发送方法数据
     async def _sender_method_data(self, device_id: str, data: dict):
-        _LOGGER.info("发送方法数 --- %s", data)
         cmdData = {"params": [{"72": json.dumps(data, separators=(',', ':'))}]}
         self.sender_msgId += 1  # 递增消息ID
         await self._async_data_publish(device_id, 2011, 1, self.sender_msgId, cmdData)
@@ -706,7 +689,6 @@ class MqttClient:
             
             return await self.async_publish(device_id, json.dumps(response))
         except Exception as e:
-            _LOGGER.error("发送数据失败: %s", str(e))
             return False
 
     async def async_publish(self, device_id: str, payload: str):
@@ -728,10 +710,8 @@ class MqttClient:
                 0,
                 False
             )
-            _LOGGER.info("MQTT 消息已发送: Topic=%s, Payload=%s", topic, payload)
             return True
         except Exception as e:
-            _LOGGER.error("MQTT 消息发送失败: %s", str(e))
             return False
 
     async def publish_empty_message(self, device_id: str):
@@ -745,37 +725,31 @@ class MqttClient:
                 0,
                 True
             )
-            _LOGGER.info("已发布空消息到上行主题: %s", topic)
         except Exception as e:
-            _LOGGER.error("发布空消息到上行主题失败: %s", str(e))
+            pass
 
     # 取设备存在的区域
     async def get_device_area(self, device_id: str):
-        _LOGGER.info("取设备存在的区域: %s", device_id)
         sub_data = {"msgId": 99, "siid": 6, "aiid": 5, "in": [{"1": 1}]}
         await self._sender_method_data(device_id, sub_data)
 
     # 设备解除绑定
     async def sender_unbind_data(self, device_id: str):
-        _LOGGER.info("发送设备解除绑定数据: %s", device_id)
         self.sender_msgId += 1  # 递增消息ID
         await self._async_data_publish(device_id, 2013, 2, self.sender_msgId)
 
     # 发送获取设备状态指令
     async def send_device_status_cmd(self, device_id: str):
-        _LOGGER.info("发送获取设备状态指令: %s", device_id)
         sub_data = {"params": [{"13": 1}]}
         await self._sender_profile_data(device_id, sub_data)
 
     # 发送重置无人命令
     async def send_reset_nobody_data(self, device_id: str, value: int):
-        _LOGGER.info("发送重置无人命令: %s", device_id)
         sub_data = {"msgId": 55, "siid": 5, "aiid": 1, "in": [{"5": value}]}
         await self._sender_method_data(device_id, sub_data)
 
     # 发送学习命令
     async def send_learning_command(self, device_id: str, learn_type: int, value: bool):
-        _LOGGER.info("发送学习命令: %s, %s, %s", device_id, learn_type, value)
         if learn_type == 1:
             sub_data = {"params": [{"58": 1 if value else 0}]}
         elif learn_type == 2:
@@ -785,9 +759,7 @@ class MqttClient:
     # 发送单个设备的户型数据
     async def send_single_device_apartment_data(self, device_id: str, device_data: dict) -> bool:
         """发送单个设备的户型数据."""
-        try:
-            _LOGGER.info('mqtt -- 开始发送设备户型数据: device_id=%s', device_id)
-            
+        try:            
             # 构造单个设备的数据
             room_data = {"params": [{"61": json.dumps(device_data, separators=(',', ':'))}]}
             
@@ -806,7 +778,6 @@ class MqttClient:
                     if response and response.get('cmd') == 2006 and response.get('key') == 74:
                         value = response.get('value')
                         if value == '0':
-                            _LOGGER.error('mqtt -- 设备 %s 户型数据发送失败: 数据格式有误', device_id)
                             # 发送事件通知前端
                             self.hass.bus.async_fire(EVENT_DATA_FORMAT_ERROR, {
                                 "room_id": device_data.get('room_id'),
@@ -814,83 +785,67 @@ class MqttClient:
                             })
                             return False
                         else:
-                            _LOGGER.info('mqtt -- 设备 %s 户型数据发送成功 -- %s', device_id, value)
                             return True
                     else:
-                        _LOGGER.warning('mqtt -- 设备 %s 户型数据响应异常: %s', device_id, response)
                         retry_count += 1
                         if retry_count < max_retries:
                             await asyncio.sleep(1)
                             
                 except asyncio.TimeoutError:
-                    _LOGGER.error('mqtt -- 设备 %s 户型数据发送超时', device_id)
                     retry_count += 1
                     if retry_count < max_retries:
                         await asyncio.sleep(1)
                 except Exception as e:
-                    _LOGGER.error('mqtt -- 设备 %s 户型数据发送出错: %s', device_id, str(e))
                     retry_count += 1
                     if retry_count < max_retries:
                         await asyncio.sleep(1)
             
             if not success:
-                _LOGGER.error('mqtt -- 设备 %s 户型数据发送失败，已达到最大重试次数', device_id)
+                _LOGGER.debug('mqtt -- 设备 %s 户型数据发送失败，已达到最大重试次数', device_id)
             
             return success
             
         except Exception as e:
-            _LOGGER.error('mqtt -- 发送设备户型数据失败: %s', str(e))
             return False
 
     async def sync_apartment_data(self, device_id: str, version_str: str):
         """同步户型数据."""
-        try:
-            _LOGGER.info('mqtt -- 开始同步户型数据: device_id=%s, version=%s', device_id, version_str)
-            
+        try:            
             # 解析版本字符串
             parts = version_str.split('_')
             if len(parts) < 3:
-                _LOGGER.error('mqtt -- 无效的版本字符串格式: %s', version_str)
                 return
                 
             apartment_id = parts[2]
             received_version = version_str
             
             if not apartment_id or not received_version:
-                _LOGGER.error('mqtt -- 无法从版本字符解析数据: %s', version_str)
                 return
-                
-            _LOGGER.info('mqtt -- 解析版本数据: apartment_id=%s, version=%s', apartment_id, received_version)
-            
+                            
             # 加载户型的 sender_data
             sender_store = Store(self.hass, STORAGE_VERSION, f"{APARTMENT_DATA_KEY}_{apartment_id}_sender")
             sender_data = await sender_store.async_load()
             
             if not sender_data or device_id not in sender_data:
-                _LOGGER.warning('mqtt -- 找不到设备对应的户型数据: device_id=%s, apartment_id=%s', device_id, apartment_id)
                 return
                 
             # 获取当前设备的据
             device_data = sender_data[device_id]
             current_version = device_data.get('version')
             
-            _LOGGER.info('mqtt -- 比较版本: current=%s, received=%s', current_version, received_version)
             
             # 比较版本
             if str(current_version) != str(received_version):
-                _LOGGER.info('mqtt -- 版本不匹配，开始同步数据: device_id=%s', device_id)
                 await self.send_single_device_apartment_data(device_id, device_data)
             else:
-                _LOGGER.info('mqtt -- 版本匹配，无需同步: device_id=%s', device_id)
+                _LOGGER.debug('mqtt -- 版本匹配，无需同步: device_id=%s', device_id)
                 
         except Exception as e:
-            _LOGGER.error('mqtt -- 同步户型数据失败: %s', str(e))
+            _LOGGER.debug('mqtt -- 同步户型数据失败: %s', str(e))
 
     async def send_apartment_data(self, sender_data: dict) -> None:
         """发送户型数据."""
-        try:
-            _LOGGER.info("开始发送户型数据")
-            
+        try:            
             # 遍历所有设备ID
             for device_id, device_data in sender_data.items():
                 # 检查设备是否在线
@@ -898,21 +853,16 @@ class MqttClient:
                 entity_state = self.hass.states.get(entity_id)
                 
                 if entity_state and entity_state.state == "在线":
-                    _LOGGER.info(f"正在发送设备 {device_id} 的数据")
                     try:
                         await self.send_single_device_apartment_data(device_id, device_data)
                     except Exception as e:
-                        _LOGGER.error(f"发送设备 {device_id} 数据失败: {str(e)}")
-                        # 继续处理下一个设备
                         continue
                 else:
-                    _LOGGER.warning(f"设备 {device_id} 离线,跳过发送数据")
                     continue
             
-            _LOGGER.info("所有户型数据发送完成")
+            _LOGGER.debug("所有户型数据发送完成")
             
         except Exception as e:
-            _LOGGER.error(f"发送户型数据时出错: {str(e)}")
             raise
 
     async def _wait_for_response(self, device_id: str, timeout: int = 60) -> dict:
@@ -920,7 +870,7 @@ class MqttClient:
         
         Args:
             device_id: 设备ID
-            timeout: 超时时间（秒），默认180秒
+            timeout: 超时时间（秒），默认60秒
         """
         if not hasattr(self, '_response_callbacks'):
             self._response_callbacks = {}
@@ -958,7 +908,6 @@ class MqttClient:
         try:
             cmd_data = {"params": [{"13": 1}]}  # 开启命令
             await self._sender_profile_data(device_id, cmd_data)
-            _LOGGER.info(f"发送开启命令到设备 {device_id}")
             await self._sender_for_status_cmd(device_id, [74, 76])
         except Exception as e:
             _LOGGER.error(f"发送开启命令失败: {str(e)}")
@@ -968,15 +917,21 @@ class MqttClient:
         try:
             cmd_data = {"params": [{"13": 0}]}  # 停止命令
             await self._sender_profile_data(device_id, cmd_data)
-            _LOGGER.info(f"发送停止命令到设备 {device_id}")
         except Exception as e:
             _LOGGER.error(f"发送停止命令失败: {str(e)}")
 
+    async def send_start_calibration_cmd(self, device_id: str, door_position: dict):
+        """发送开始校准命令."""
+        print("door_position:", door_position)
+        try:
+            sub_data = {"msgId": 77, "siid": 12, "aiid": 1, "in": [{"4": door_position['x']}, {"5": door_position['y']}]}
+            await self._sender_method_data(device_id, sub_data)
+        except Exception as e:
+            _LOGGER.error(f"发送开始校准命令失败: {str(e)}")
+
     async def update_room_status(self, device_id: str, value: int):
         """更新房间状态"""
-        try:
-            _LOGGER.info('mqtt -- 更新房间状态: device_id=%s, value=%s', device_id, value)
-            
+        try:            
             # 获取户型列表
             apartments_store = Store(self.hass, STORAGE_VERSION, APARTMENTS_STORAGE_KEY)
             apartments_data = await apartments_store.async_load()
@@ -1010,7 +965,6 @@ class MqttClient:
             room_sensor = self.hass.data[DOMAIN].get('room_sensors', {}).get(sensor_key)
             if room_sensor:
                 room_sensor.set_state(value == 1)
-                _LOGGER.info(f"已更新房间传感器状态: {sensor_key} -> {value == 1}")
             else:
                 _LOGGER.warning(f"未找到房间传感器: {sensor_key}")
             
@@ -1020,9 +974,6 @@ class MqttClient:
     async def update_area_status(self, device_id: str, area_id: int, has_person: bool):
         """更新区域状态"""
         try:
-            _LOGGER.info('mqtt -- 更新区域状态: device_id=%s, area_id=%s, has_person=%s', 
-                         device_id, area_id, has_person)
-            
             # 获取户型列表
             apartments_store = Store(self.hass, STORAGE_VERSION, APARTMENTS_STORAGE_KEY)
             apartments_data = await apartments_store.async_load()
@@ -1034,7 +985,6 @@ class MqttClient:
             if apartments_data and 'apartments' in apartments_data:
                 for apartment in apartments_data['apartments']:
                     apartment_id = apartment['id']
-                    _LOGGER.info('mqtt -- 检查户型: apartment_id=%s', apartment_id)
                     
                     # 加载户型的 sender_data
                     sender_store = Store(self.hass, STORAGE_VERSION, f"{APARTMENT_DATA_KEY}_{apartment_id}_sender")
@@ -1042,14 +992,12 @@ class MqttClient:
                     
                     if sender_data and device_id in sender_data:
                         device_info = sender_data[device_id]
-                        # _LOGGER.info('mqtt -- 设备信息: device_info=%s', device_info)
                         
                         # 检查区域ID是否属于这个设备
                         if 'region' in device_info:
                             # 遍历 region 数组查找匹配的 area_id
                             for region in device_info['region']:
                                 if region.get('area-id') == area_id:
-                                    _LOGGER.info('mqtt -- 找到匹配的区域: area_id=%s', area_id)
                                     break
                             else:
                                 # 如果遍历完没找到匹配的区域，继续检查下一户型
@@ -1058,7 +1006,6 @@ class MqttClient:
                             break
                         
             if not device_info or not apartment_id:
-                _LOGGER.error(f"找不到设备 {device_id} 对应的区域信息")
                 return
             
             # 获取区域传感器实体并更新其状态
@@ -1066,7 +1013,6 @@ class MqttClient:
             area_sensor = self.hass.data[DOMAIN].get('area_sensors', {}).get(sensor_key)
             if area_sensor:
                 area_sensor.set_state(has_person)
-                _LOGGER.info(f"已更新区域传感器状态: {sensor_key} -> {has_person}")
             else:
                 _LOGGER.warning(f"未找到区域传感器: {sensor_key}")
                 
@@ -1076,9 +1022,6 @@ class MqttClient:
     async def notify_area_movement(self, source_device_id: str, area_id: int, direction: int, frames: int, number: int):
         """通知其他设备区域移动事件."""
         try:
-            _LOGGER.info('mqtt -- 开始处理区域移动通知: source_device=%s, area_id=%s, direction=%s, frames=%s',
-                        source_device_id, area_id, direction, frames)
-            
             # 获取户型列表
             apartments_store = Store(self.hass, STORAGE_VERSION, APARTMENTS_STORAGE_KEY)
             apartments_data = await apartments_store.async_load()
@@ -1102,12 +1045,8 @@ class MqttClient:
                             if 'region' in device_info:
                                 for region in device_info['region']:
                                     if region.get('area-id') == area_id:
-                                        _LOGGER.info('mqtt -- 找到匹配的设备和区域: target_device=%s, area_id=%s',
-                                                   target_device_id, area_id)
                                         sub_data = {"msgId": 8, "siid": 13, "aiid": 4, "in": [{"1": area_id}, {"21": direction}, {"26": frames}, {"27": number}]}
                                         await self._sender_method_data(target_device_id, sub_data)
-                                        _LOGGER.info('mqtt -- 已发送移动事件通知: target_device=%s, data=%s',
-                                                   target_device_id, sub_data)
                                         break
         
         except Exception as e:
@@ -1115,15 +1054,12 @@ class MqttClient:
 
     async def send_common_door_id_to_device(self, device_id: str):
         """发送共用门id给设备."""
-        try:
-            _LOGGER.info("开始检查共用门: device_id=%s", device_id)
-            
+        try:            
             # 获取户型列表
             apartments_store = Store(self.hass, STORAGE_VERSION, APARTMENTS_STORAGE_KEY)
             apartments_data = await apartments_store.async_load()
             
             if not apartments_data or 'apartments' not in apartments_data:
-                _LOGGER.warning("未找到户型数据")
                 return
             
             common_doors = set()  # 用于存储共用门的ID
@@ -1166,19 +1102,17 @@ class MqttClient:
                                 if (other_region.get('area-attribute') == 2 and 
                                     other_region.get('area-id') == area_id):
                                     common_doors.add(area_id)
-                                    _LOGGER.info("找到共用门: area_id=%s", area_id)
             
             # 如果找到共用门，发送到设备
             if common_doors:
                 for door_id in common_doors:
                     sub_data = {"msgId": 19, "siid": 13, "aiid": 5, "in": [{"1": door_id}]}
                     await self._sender_method_data(device_id, sub_data)
-                    _LOGGER.info("已发送共用门ID到设备: device_id=%s, door_id=%s", device_id, door_id)
             else:
-                _LOGGER.info("未找到共用门: device_id=%s", device_id)
+                _LOGGER.debug("未找到共用门: device_id=%s", device_id)
                 
         except Exception as e:
-            _LOGGER.error("发送共用门ID失败: %s", str(e))
+            _LOGGER.debug("发送共用门ID失败: %s", str(e))
 
     async def delete_apart_device(self, device_id: str):
         """删除户型数据中包含指定device_id的数据.
@@ -1187,20 +1121,17 @@ class MqttClient:
             device_id: 要删除的设备ID
         """
         try:
-            _LOGGER.info("开始删除户型数据中的设备: %s", device_id)
             
             # 获取户型列表
             apartments_store = Store(self.hass, STORAGE_VERSION, APARTMENTS_STORAGE_KEY)
             apartments_data = await apartments_store.async_load()
             
             if not apartments_data or 'apartments' not in apartments_data:
-                _LOGGER.warning("未找到户型数据")
                 return
                 
             # 遍历所有户型
             for apartment in apartments_data['apartments']:
                 apartment_id = apartment['id']
-                _LOGGER.info("检查户型: %s", apartment_id)
                 
                 # 加载户型数据
                 apartment_store = Store(self.hass, STORAGE_VERSION, f"{APARTMENT_DATA_KEY}_{apartment_id}")
@@ -1218,12 +1149,9 @@ class MqttClient:
                         ]
                         if len(apartment_data['devices']) < original_length:
                             modified = True
-                            _LOGGER.info("从户型 %s 的设备列表中删除了设备 %s", apartment_id, device_id)
-                    _LOGGER.info("YYYYYY---apartment_data: %s", apartment_data)
                     # 如果数据被修改，保存更新后的户型数据
                     if modified:
                         await apartment_store.async_save(apartment_data)
-                        _LOGGER.info("已保存更新后的户型数据: apartment_id=%s", apartment_id)
                 
                 # 加载并更新 sender_data
                 sender_store = Store(self.hass, STORAGE_VERSION, f"{APARTMENT_DATA_KEY}_{apartment_id}_sender")
@@ -1232,12 +1160,7 @@ class MqttClient:
                 if sender_data and device_id in sender_data:
                     # 删除设备数据
                     del sender_data[device_id]
-                    await sender_store.async_save(sender_data)
-                    _LOGGER.info("已从 sender_data 中删除设备: apartment_id=%s, device_id=%s", 
-                               apartment_id, device_id)
-            
-            _LOGGER.info("完成删除户型数据中的设备: %s", device_id)
-            
+                    await sender_store.async_save(sender_data)            
         except Exception as e:
-            _LOGGER.error("删除户型数据中的设备失败: %s", str(e))
+            _LOGGER.debug("删除户型数据中的设备失败: %s", str(e))
         

@@ -2,13 +2,11 @@
 import base64
 import os
 import json
-import logging
 from homeassistant.core import HomeAssistant
 import aiofiles  # 需要添加这个导入
 
 from .const import AES_KEY_HEX, AES_IV_HEX
 
-_LOGGER = logging.getLogger(__name__)
 
 class TranslationManager:
     """翻译管理器单例类."""
@@ -31,7 +29,6 @@ class TranslationManager:
     async def _load_translations(cls):
         """加载翻译文件."""
         if not cls._hass:
-            _LOGGER.error("TranslationManager 未初始化")
             return
 
         current_language = cls._hass.config.language if cls._hass else "en"
@@ -48,10 +45,8 @@ class TranslationManager:
                 translation_file = os.path.join(translations_dir, "en.json")
             
             cls._translations = await cls.load_translations(translation_file)
-            _LOGGER.info("Loaded translation for %s", current_language)
                 
         except Exception as e:
-            _LOGGER.error("Error loading translation file: %s", str(e))
             cls._translations = {}
 
     @classmethod
@@ -62,7 +57,6 @@ class TranslationManager:
                 content = await f.read()
                 return json.loads(content)
         except Exception as e:
-            _LOGGER.error("加载翻译文件失败: %s", str(e))
             return {}
 
     @classmethod
@@ -95,7 +89,6 @@ class TranslationManager:
             return value if isinstance(value, str) else key_path
             
         except Exception as e:
-            _LOGGER.error("Error getting translation for key %s: %s", key_path, str(e))
             return key_path
 
 # 导出便捷方法

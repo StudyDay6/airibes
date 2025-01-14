@@ -10,6 +10,9 @@
                     "clear_data_on_unload": "删除集成时清理存储数据"
                 }
             }
+        },
+        "abort": {
+            "single_instance_allowed": "仅允许添加一个配置条目"
         }
     },
     "options": {
@@ -35,24 +38,30 @@
         },
         "select": {
             "airibes": {
-                "high": "高",
-                "medium": "中",
-                "low": "低"
+                "state":{
+                    "high": "高",
+                    "medium": "中",
+                    "low": "低"
+                }
             }
         },
         "switch": {
             "airibes": {
-                "ap": "AP",
-                "learn": "学习"
+                "state": {  
+                    "ap": "AP",
+                    "learn": "学习"
+                }
             }
         },
         "button": {
-            "airibes": {
-                "learn": "自学习",
-                "has_people_learn": "单人走动学习",
-                "no_people_learn": "空间无人学习",
-                "device_offline": "设备当前不在线，需要设备在线才能进行学习",
-                "device_offline_title": "设备不在线"
+            "airibes": {    
+                "state": {
+                    "learn": "自学习",
+                    "has_people_learn": "单人走动学习",
+                    "no_people_learn": "空间无人学习",
+                    "device_offline": "设备当前不在线，需要设备在线才能进行学习",
+                    "device_offline_title": "设备不在线"
+                }
             }
         }
     },

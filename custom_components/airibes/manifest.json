@@ -3,7 +3,8 @@
   "name": "Airibes",
   "version": "1.0.0",
   "documentation": "https://github.com/StudyDay6/airibes",
-  "dependencies": ["frontend", "mqtt"],
+  "issue_tracker": "https://github.com/StudyDay6/airibes/issues", 
+  "dependencies": ["frontend", "mqtt", "http"],
   "codeowners": ["@StudyDay6"],
   "requirements": [
     "aiofiles"
@@ -12,7 +13,6 @@
   "config_flow": true,
   "icon": "mdi:radar",
   "quality_scale": "silver",
-  "brand": true,
   "translations": {
     "en": "translations/en.json",
     "fr": "translations/fr.json",

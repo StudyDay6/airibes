@@ -23,25 +23,32 @@
             }
         },
         "select": {
-            "airibes": {
-                "high": "High",
-                "medium": "Medium",
-                "low": "Low"
+            "airibes": {    
+                "state": {
+                    "high": "High",
+                    "medium": "Medium",
+                    "low": "Low"
+                }
             }
         },
         "switch": {
             "airibes": {
-                "ap": "AP",
-                "learn": "Learn"
+                "state": {  
+                    "ap": "AP",
+                    "learn": "Learn"
+                }
             }
         },
         "button": {
-            "airibes": {
-                "learn": "Learning",
-                "device_offline": "Device is offline, please turn on the device before learning",
-                "device_offline_title": "Device is offline"
+            "airibes": {        
+                "state": {
+                    "learn": "Learning",
+                    "has_people_learn": "Single person movement learning",
+                    "no_people_learn": "Space without people learning",
+                    "device_offline": "Device is offline, please turn on the device before learning",
+                    "device_offline_title": "Device is offline"
+                }
             }
         }
-    },
-    "test": "tteeeee"
+    }
 } 

@@ -53,23 +53,11 @@ class StorageManager:
         """在 Home Assistant 启动完成后初始化户型视图."""
         try:
             # 等待2秒确保所有组件都已加载完成
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
+            mqtt_client = self.hass.data[DOMAIN].get('mqtt_client')
+            if mqtt_client:
+                await StorageManager._handle_device_visibility(self.hass, mqtt_client, 1, True)
             
-            # 发送户型视图可见性事件
-            # await self.websocket_set_apartment_view_visible(
-            #     self.hass,
-            #     None,
-            #     {
-            #         'type': 'airibes/set_apartment_view_visible',
-            #         'visible': True,
-            #         'apartment_id': 1  # 直接使用户型一
-            #     }
-            # )
-            self.hass.bus.async_fire(EVENT_APARTMENT_VIEW_VISIBLE, {
-                "visible": True,
-                "apartment_id": 1
-            })
-            _LOGGER.info("已初始化户型视图可见性: apartment_id=1")
             
         except Exception as e:
             _LOGGER.error("初始化户型视图可见性失败: %s", str(e))
@@ -128,6 +116,48 @@ class StorageManager:
             self.hass,
             self.websocket_learning_data
         )
+        async_register_command(
+            self.hass,
+            self.websocket_start_calibration
+        )
+
+    @staticmethod
+    @websocket_command({
+        vol.Required('type'): 'airibes/start_calibration',
+        vol.Required('radar_id'): str,
+        vol.Required('door_position'): {
+            vol.Required('x'): int,
+            vol.Required('y'): int
+        }
+    })
+    @async_response
+    async def websocket_start_calibration(hass: HomeAssistant, connection: ActiveConnection, msg: dict):
+        """开始雷达校准"""
+        try:
+            radar_id = msg['radar_id']
+            door_position = msg['door_position']
+            # 调用 MQTT 发送校准命令
+            mqtt_client = hass.data[DOMAIN].get('mqtt_client')
+            if mqtt_client:
+                await mqtt_client.send_start_calibration_cmd(radar_id, door_position)
+                
+                connection.send_result(msg['id'], {
+                    'success': True,
+                    'message': 'Calibration command sent successfully'
+                })
+            else:
+                connection.send_error(
+                    msg['id'], 
+                    'mqtt_not_ready', 
+                    'MQTT client is not ready'
+                )
+        except Exception as e:
+            connection.send_error(
+                msg['id'], 
+                'start_calibration_failed',
+                f'Failed to start calibration: {str(e)}'
+            )
+
     @staticmethod
     @websocket_command({
         vol.Required('type'): 'airibes/get_apartments'
@@ -151,7 +181,6 @@ class StorageManager:
             
             connection.send_result(msg['id'], apartments)
         except Exception as e:
-            _LOGGER.error("获取户型列表失败: %s", str(e))
             connection.send_error(msg['id'], 'load_failed', str(e))
 
     @staticmethod
@@ -184,7 +213,6 @@ class StorageManager:
             
             connection.send_result(msg['id'], {'id': new_id})
         except Exception as e:
-            _LOGGER.error("添加户型失败: %s", str(e))
             connection.send_error(msg['id'], 'save_failed', str(e))
 
     @staticmethod
@@ -199,7 +227,6 @@ class StorageManager:
         hass: HomeAssistant, connection: ActiveConnection, msg: dict
     ) -> None:
         """保存户型数据."""
-        _LOGGER.info("收到保存户型数据的请求: %s", msg)
         try:
             apartment_id = msg['apartment_id']
             data = msg.get("data", {})
@@ -211,7 +238,6 @@ class StorageManager:
             
             # 异步保存数据
             await store.async_save(data)
-            _LOGGER.info("保存户型 %s 数据成功: %s", apartment_id, json.dumps(data, indent=2))
 
             # 创建或更新实体
             await create_entities(hass, data, apartment_id)
@@ -219,7 +245,7 @@ class StorageManager:
             # 处理 senderData
             if sender_data:
                 # 记录发送数据结构
-                _LOGGER.info("房间数据结构: %s", json.dumps(sender_data, indent=2))
+                _LOGGER.debug("房间数据结构: %s", json.dumps(sender_data, indent=2))
 
                 # 保存到单独的存储
                 sender_store = Store(hass, STORAGE_VERSION, f"{storage_key}_sender")
@@ -259,9 +285,8 @@ class StorageManager:
                             data = json.load(f)
                         # 保存到新的存储位
                         await store.async_save(data)
-                        _LOGGER.info("成功迁移旧数据到新存储格式")
                     except Exception as e:
-                        _LOGGER.error("迁移旧数据失败: %s", str(e))
+                        _LOGGER.debug("迁移旧数据失败: %s", str(e))
             
             # 如果没有数据,返回空数据结构
             if not data:
@@ -278,10 +303,8 @@ class StorageManager:
                     'availableStickerIds': []
                 }
             
-            # _LOGGER.info("加载户型 %s 数据成功: %s", apartment_id, json.dumps(data, indent=2))
             connection.send_result(msg['id'], {'data': data})
         except Exception as e:
-            _LOGGER.error("加载户型数据失败: %s", str(e))
             connection.send_error(msg['id'], 'load_failed', str(e))
 
     @staticmethod
@@ -313,13 +336,9 @@ class StorageManager:
             # 使用雷达设备存储键
             store = Store(hass, STORAGE_VERSION, RADAR_STORAGE_KEY)
             stored_devices = await store.async_load() or {}
-            
-            # 打印存储的设备数据到日志
-            _LOGGER.info("获取到存储的雷达设备据: %s", stored_devices)
-            
+          
             connection.send_result(msg['id'], stored_devices)
         except Exception as e:
-            _LOGGER.error("加载存储的设备数据失败: %s", str(e))
             connection.send_error(msg['id'], 'load_failed', str(e)) 
 
     @staticmethod
@@ -331,59 +350,53 @@ class StorageManager:
     @async_response
     async def websocket_set_apartment_view_visible(hass: HomeAssistant, connection: ActiveConnection, msg: dict):
         """设置户型视图可见性."""
-        _LOGGER.info("收到户型视图可见性变化请求: %s", msg)
         try:
             visible = msg['visible']
             apartment_id = msg['apartment_id']
-            # 发送事件
-            # hass.bus.async_fire(EVENT_APARTMENT_VIEW_VISIBLE, {
-            #     "visible": visible,
-            #     "apartment_id": apartment_id
-            # })
             
             mqtt_client = hass.data[DOMAIN].get('mqtt_client')
-            mqtt_client.set_apartment_view_visible(apartment_id, visible)
             if not mqtt_client:
                 raise Exception("MQTT客户端未初始化")
 
-            # 获取所有雷达设备
-            radar_store = Store(hass, STORAGE_VERSION, RADAR_STORAGE_KEY)
-            stored_devices = await radar_store.async_load() or {}
-
-            if visible:
-                # 当visible为true时，加载户型数据
-                apartment_store = Store(hass, STORAGE_VERSION, f"{APARTMENT_DATA_KEY}_{apartment_id}")
-                apartment_data = await apartment_store.async_load()
-                
-                if apartment_data:
-                    rooms = apartment_data.get('rooms', [])
-                    # 获取所有在房间中的设备ID
-                    devices_in_rooms = set()
-                    for room in rooms:
-                        if room.get('devices'):
-                            devices_in_rooms.update(device_id.upper() for device_id in room['devices'])
-                    
-                    # 遍历所有雷达设备
-                    for device_id in stored_devices:
-                        if device_id in devices_in_rooms:
-                            # 如果设备在房间中，发送开启命令
-                            await mqtt_client.send_start_cmd(device_id)
-                            _LOGGER.info("已启动房间中的设备: %s", device_id)
-                        else:
-                            # 如果设备不在房间中，发送停止命令
-                            await mqtt_client.send_stop_cmd(device_id)
-                            _LOGGER.info("已停止非房间中的设备: %s", device_id)
-            else:
-                # 当visible为false时，停止所有雷达设备
-                for device_id in stored_devices:
-                    await mqtt_client.send_stop_cmd(device_id)
-                    _LOGGER.info("已停止设备: %s", device_id)
-            
+            await StorageManager._handle_device_visibility(hass, mqtt_client, apartment_id, visible)
             connection.send_result(msg['id'])
             
         except Exception as e:
-            _LOGGER.error("设置户型视图可见性失败: %s", str(e))
             connection.send_error(msg['id'], 'set_visible_failed', str(e))
+
+    @staticmethod
+    async def _handle_device_visibility(hass: HomeAssistant, mqtt_client, apartment_id: int, visible: bool):
+        """处理设备可见性和状态."""
+        mqtt_client.set_apartment_view_visible(apartment_id, visible)
+
+        # 获取所有雷达设备
+        radar_store = Store(hass, STORAGE_VERSION, RADAR_STORAGE_KEY)
+        stored_devices = await radar_store.async_load() or {}
+        if visible:
+            # 当visible为true时，加载户型数据
+            apartment_store = Store(hass, STORAGE_VERSION, f"{APARTMENT_DATA_KEY}_{apartment_id}")
+            apartment_data = await apartment_store.async_load()
+            
+            if apartment_data:
+                rooms = apartment_data.get('rooms', [])
+                # 获取所有在房间中的设备ID
+                devices_in_rooms = set()
+                for room in rooms:
+                    if room.get('devices'):
+                        devices_in_rooms.update(device_id.upper() for device_id in room['devices'])
+                
+                # 遍历所有雷达设备
+                for device_id in stored_devices:
+                    if device_id in devices_in_rooms:
+                        # 如果设备在房间中，发送开启命令
+                        await mqtt_client.send_start_cmd(device_id)
+                    else:
+                        # 如果设备不在房间中，发送停止命令
+                        await mqtt_client.send_stop_cmd(device_id)
+        else:
+            # 当visible为false时，停止所有雷达设备
+            for device_id in stored_devices:
+                await mqtt_client.send_stop_cmd(device_id)
 
     @staticmethod
     @websocket_command({
@@ -441,11 +454,9 @@ class StorageManager:
                             "attributes": dict(state.attributes)
                         }
                         imported_data["devices"].append(device_data)
-                        _LOGGER.info("添加新导入设备: %s", device_data)
             
             # 保存更新后的数据
             await store.async_save(imported_data)
-            _LOGGER.info("成功保存导入的设备数据")
             
             # 发送事件通知前端更新
             self.hass.bus.async_fire(f"{DOMAIN}_devices_imported", {
@@ -453,7 +464,7 @@ class StorageManager:
             })
             
         except Exception as e:
-            _LOGGER.error("保存导入设备失败: %s", str(e))
+            _LOGGER.debug("保存导入设备失败: %s", str(e))
             raise
 
     async def get_imported_devices(self) -> List[dict]:
@@ -463,7 +474,6 @@ class StorageManager:
             data = await store.async_load()
             return data.get("devices", []) if data else []
         except Exception as e:
-            _LOGGER.error("获取导入设备列表失败: %s", str(e))
             return []
 
     @staticmethod
@@ -484,7 +494,6 @@ class StorageManager:
             connection.send_result(msg['id'], {"devices": imported_devices})
             
         except Exception as e:
-            _LOGGER.error("获取导入设备列表失败: %s", str(e))
             connection.send_error(msg['id'], 'load_failed', str(e))
 
     @staticmethod
@@ -504,7 +513,6 @@ class StorageManager:
             
             # 如果设备离线,返回错误
             if not entity_state or entity_state.state != "在线":
-                _LOGGER.warning("设备 %s 离线,无法删除", device_id)
                 connection.send_error(
                     msg['id'], 
                     'device_offline',
@@ -520,13 +528,11 @@ class StorageManager:
                     # 发送成功后返回结果
                     connection.send_result(msg['id'], {"success": True})
                 except Exception as e:
-                    _LOGGER.error("发送解除绑定命令失败: %s", str(e))
                     connection.send_error(msg['id'], 'unbind_failed', str(e))
             else:
                 connection.send_error(msg['id'], 'mqtt_client_not_found', "MQTT客户端未初始化")
             
         except Exception as e:
-            _LOGGER.error("删除雷达设备失败: %s", str(e))
             connection.send_error(msg['id'], 'delete_failed', str(e))
 
     @staticmethod
@@ -551,12 +557,10 @@ class StorageManager:
                     if device["entity_id"] != entity_id
                 ]
                 await store.async_save(imported_data)
-                _LOGGER.info("已删除导入的设备: %s", entity_id)
             
             connection.send_result(msg['id'], {"success": True})
             
         except Exception as e:
-            _LOGGER.error("删除导入设备失败: %s", str(e))
             connection.send_error(msg['id'], 'delete_failed', str(e))
 
     @staticmethod
@@ -580,11 +584,9 @@ class StorageManager:
             # 发送重置无人命令，带上person_id参数
             await mqtt_client.send_reset_nobody_data(device_id, person_id)
             
-            _LOGGER.info("已送重置无人命令到设备: %s, person_id: %s", device_id, person_id)
             connection.send_result(msg['id'], {"success": True})
             
         except Exception as e:
-            _LOGGER.error("发送重置无人命令失败: %s", str(e))
             connection.send_error(msg['id'], 'send_failed', str(e))
 
     @staticmethod
@@ -613,12 +615,10 @@ class StorageManager:
             # 记录日志
             action_str = "开始" if action else "结束"
             learn_type_str = "无人" if learn_type == 1 else "单人"
-            _LOGGER.info("发送%s%s学习命令到设备: %s", learn_type_str, action_str, device_id)
             
             connection.send_result(msg['id'], {"success": True})
             
         except Exception as e:
-            _LOGGER.error("发送学习命令失败: %s", str(e))
             connection.send_error(msg['id'], 'send_failed', str(e))
 
     async def async_clear_storage(self) -> None:
@@ -647,7 +647,6 @@ class StorageManager:
                 for file_path in storage_files:
                     try:
                         os.remove(file_path)
-                        _LOGGER.info("已删除存储文件: %s", file_path)
                     except Exception as e:
                         _LOGGER.warning("删除存储文件失败 %s: %s", file_path, str(e))
             
@@ -661,7 +660,6 @@ class StorageManager:
                 if os.path.exists(storage_path):
                     try:
                         shutil.rmtree(storage_path)
-                        _LOGGER.info("已删除存储目录: %s", storage_path)
                     except Exception as e:
                         _LOGGER.warning("删除存储目录失败 %s: %s", storage_path, str(e))
             
@@ -682,14 +680,12 @@ class StorageManager:
                 except Exception as e:
                     _LOGGER.warning("清空存储失败: %s", str(e))
             
-            _LOGGER.info("所有存储数据和文件已清理")
             
         except Exception as e:
             _LOGGER.error("清理存储数据失败: %s", str(e))
 
     def clear_storage(self) -> None:
         """同步方法 - 已弃用."""
-        _LOGGER.warning("使用已弃用的同步 clear_storage 方法，请使用 async_clear_storage")
         self.hass.async_create_task(self.async_clear_storage())
 
 async def create_entities(hass: HomeAssistant, data: dict, apartment_id: int) -> None:
@@ -706,19 +702,13 @@ async def create_entities(hass: HomeAssistant, data: dict, apartment_id: int) ->
 
         # 获取已存在的实体
         existing_room_sensors = {
-            f"apartment_{apartment_id}_room_{k}": v 
+            f"{k}": v 
             for k, v in hass.data[DOMAIN].get('room_sensors', {}).items()
         }
         existing_area_sensors = {
-            f"apartment_{apartment_id}_area_{k}": v 
+            f"{k}": v 
             for k, v in hass.data[DOMAIN].get('area_sensors', {}).items()
         }
-
-        _LOGGER.info("当前房间ID: %s", current_room_ids)
-        _LOGGER.info("当前区域ID: %s", current_area_ids)
-        _LOGGER.info("当前门ID: %s", current_door_ids)
-        _LOGGER.info("已存在的房间实体: %s", existing_room_sensors)
-        _LOGGER.info("已存在的区域实体: %s", existing_area_sensors)
 
         # 删除不再存在的房间实体
         for sensor_key in list(existing_room_sensors.keys()):
@@ -729,7 +719,6 @@ async def create_entities(hass: HomeAssistant, data: dict, apartment_id: int) ->
                 # 从注册表中删除实体
                 if entity_registry.async_get(entity_id):
                     entity_registry.async_remove(entity_id)
-                    _LOGGER.info(f"删除不存在的房间实体: {entity_id}")
 
         # 删除不再存在的区域实体
         for sensor_key in list(existing_area_sensors.keys()):
@@ -741,7 +730,6 @@ async def create_entities(hass: HomeAssistant, data: dict, apartment_id: int) ->
                 # 从注册表中删除实体
                 if entity_registry.async_get(entity_id):
                     entity_registry.async_remove(entity_id)
-                    _LOGGER.info(f"删除不存在的区域实体: {entity_id}")
 
         # 创建房间实体
         for room in data.get('rooms', []):

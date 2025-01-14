@@ -12,7 +12,13 @@ if (!customElements.get('cus-panel')) {
         this._hass = null;
         this.apartmentData = null;
         this.currentApartmentId = 1;
+        this.calibrationStep = 0;
         this.personPositions = new Map();
+        this.calibratingRoomId = null;
+        this.calibratingRadarId = null;
+        this.doorNumbers = new Map();
+        this.calibratingDoorPosition = null;
+        this.scale = 1;
       }
 
       set hass(hass) {
@@ -83,30 +89,33 @@ if (!customElements.get('cus-panel')) {
                         <div class="header-title">${translations.title}</div>
                         <div class="header-buttons">
                             <mwc-button 
-                                class="reset-button"
-                                id="reset-button">
-                                <ha-icon icon="mdi:account-off"></ha-icon>
-                                ${getTranslationValue('reset_position', this._hass?.language || 'en')}
-                            </mwc-button>
-                            <mwc-button 
-                                class="export-button"
-                                id="export-button">
-                                <ha-icon icon="mdi:export"></ha-icon>
-                                ${translations.export_cards}
-                            </mwc-button>
-                            <mwc-button 
-                                class="device-library-button"
-                                id="device-library-button">
-                                <ha-icon icon="mdi:database"></ha-icon>
-                                ${translations.device_library}
-                            </mwc-button>
-                            <mwc-button 
                                 raised
                                 class="header-button" 
                                 id="apartment-btn">
                                 <ha-icon icon="mdi:floor-plan"></ha-icon>
                                 ${translations.edit_button}
                             </mwc-button>
+                            <div class="more-button">
+                                <ha-icon icon="mdi:dots-vertical"></ha-icon>
+                                <div class="dropdown-menu">
+                                    <div class="dropdown-item" id="device-library-button">
+                                        <ha-icon icon="mdi:database"></ha-icon>
+                                        <span>${translations.device_library}</span>
+                                    </div>
+                                    <div class="dropdown-item" id="reset-button">
+                                        <ha-icon icon="mdi:account-off"></ha-icon>
+                                        <span>${getTranslationValue('reset_position', this._hass?.language || 'en')}</span>
+                                    </div>
+                                    <div class="dropdown-item" id="export-button">
+                                        <ha-icon icon="mdi:export"></ha-icon>
+                                        <span>${translations.export_cards}</span>
+                                    </div>
+                                    <div class="dropdown-item" id="calibrate-button">
+                                        <ha-icon icon="mdi:ruler"></ha-icon>
+                                        <span>${translations.calibrate}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="card-content">
@@ -118,38 +127,72 @@ if (!customElements.get('cus-panel')) {
                         </div>
                     </div>
                 </ha-card>
+                
+                <!-- 添加雷达校准弹框 -->
+                <div class="calibration-dialog" id="calibrationDialog">
+                    <div class="dialog-content">
+                        <div class="dialog-header">
+                            <span>${translations.calibrate}</span>
+                            <span class="calibration-help-link">${translations.why_calibrate}</span>
+                            <ha-icon 
+                                class="close-button" 
+                                icon="mdi:close" 
+                                id="closeDialog">
+                            </ha-icon>
+                        </div>
+                        <div class="dialog-body">
+                            <div class="radar-list" id="radarList">
+                                <!-- 雷达列表将动态添加 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
 
-        // 添加重置无人按钮事件监听
-        const resetButton = this.shadowRoot.getElementById("reset-button");
-        if (resetButton) {
-            resetButton.addEventListener("click", () => {
-                this.resetNoPersonStatus();
+        // 添加点击事件监听
+        this.shadowRoot.querySelector('.calibration-help-link')?.addEventListener('click', () => {
+            const translations = getTranslation(this._hass?.language || 'en');
+            
+            // 创建弹框
+            const dialog = document.createElement('ha-dialog');
+            dialog.heading = translations.why_calibrate;
+            dialog.open = true;
+            dialog.hideActions = true; // 隐藏默认的 footer
+            
+            // 设置弹框内容
+            dialog.innerHTML = `
+                <div class="calibration-help-dialog">
+                    <p>${translations.calibration_help_text}</p>
+                    <div class="dialog-button-container">
+                        <mwc-button
+                            class="close-button"
+                            dialogAction="ok">
+                            ${translations.confirm}
+                        </mwc-button>
+                    </div>
+                </div>
+            `;
+            
+            // 添加关闭事件监听
+            dialog.addEventListener('closed', () => dialog.remove());
+            
+            // 添加按钮点击事件
+            dialog.addEventListener('click', (e) => {
+                const button = e.target.closest('mwc-button');
+                if (button) {
+                    dialog.close();
+                }
             });
-        }
-
-        // 添加导出按钮事件监听
-        const exportButton = this.shadowRoot.getElementById("export-button");
-        if (exportButton) {
-            exportButton.addEventListener("click", () => {
-                this.exportApartmentCard();
-            });
-        }
-
-        // 添加设备库按钮事件监听
-        const deviceLibraryButton = this.shadowRoot.getElementById("device-library-button");
-        if (deviceLibraryButton) {
-            deviceLibraryButton.addEventListener("click", () => {
-                window.location.pathname = '/airibes_device_library';
-            });
-        }
+            
+            // 添加到 DOM
+            this.shadowRoot.appendChild(dialog);
+        });
       }
 
       async loadData() {
         try {
             if (!this._hass) {
-                console.warn('hass 对象未初始化');
                 return;
             }
 
@@ -172,7 +215,6 @@ if (!customElements.get('cus-panel')) {
                 type: 'airibes/load_apartment_data',
                 apartment_id: currentApartmentId
             });
-
             if (response && response.data) {
                 this.apartmentData = response.data;
                 // 重新绘制
@@ -227,6 +269,7 @@ if (!customElements.get('cus-panel')) {
         const scaleX = (container.clientWidth - padding * 2) / bounds.width;
         const scaleY = (container.clientHeight - padding * 2) / bounds.height;
         const scale = Math.min(scaleX, scaleY);
+        this.scale = scale;
 
         // 计算居中偏移
         const offsetX = (container.clientWidth - bounds.width * scale) / 2;
@@ -284,8 +327,8 @@ if (!customElements.get('cus-panel')) {
       }
 
       drawRooms(ctx) {
-        const { rooms = [], stickers = [] } = this.apartmentData;
-        
+        let { rooms = [], stickers = [] } = this.apartmentData;
+        rooms = rooms.filter(room => !(room?.isValid === false));
         // 遍历每个房间
         rooms.forEach(room => {
           // 检查房间内的灯具状态
@@ -317,6 +360,9 @@ if (!customElements.get('cus-panel')) {
             }
           } else {
             roomColor = '#203B55'; // 默认颜色(没有灯具的房间)
+          }
+          if (this.calibratingRoomId && room.id === this.calibratingRoomId) {
+            roomColor = '#FFFFFF'; // 白色背景
           }
 
           // 绘制房间地板
@@ -417,6 +463,43 @@ if (!customElements.get('cus-panel')) {
             ctx.textBaseline = 'middle';
             ctx.fillText(room.name, room.left + room.width / 2, room.top + room.height / 2);
         });
+
+        // 在绘制完门洞后，绘制门号
+        if (this.calibrationStep === 2 && this.calibratingRoomId) {
+            rooms.forEach(room => {
+                if (room.id === this.calibratingRoomId) {
+                    const doors = this.apartmentData.stickers.filter(sticker => 
+                        sticker.type === 'door' && 
+                        this.isDoorOnRoomWall(sticker, room)
+                    );
+                    doors.forEach(door => {
+                        const doorNumber = this.doorNumbers.get(door.id);
+                        if (doorNumber !== undefined) {
+                            // 计算门的中心点
+                            const doorCenterX = door.left + door.width / 2;
+                            const doorCenterY = door.top + door.height / 2;
+                            
+                            // 绘制圆形背景
+                            ctx.save();
+                            ctx.fillStyle = '#1976D2';  // 蓝色背景
+                            ctx.beginPath();
+                            ctx.arc(doorCenterX, doorCenterY, 12, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            // 绘制门号文字
+                            ctx.fillStyle = '#FFFFFF';  // 白色文字
+                            ctx.font = 'bold 16px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(doorNumber.toString(), doorCenterX, doorCenterY);
+                            ctx.restore();
+                            // 添加点击区域
+                            // this.addDoorNumberClickArea(doorCenterX, doorCenterY, door);
+                        }
+                    });
+                }
+            });
+        }
       }
 
       // 判断门是否在房间墙上的辅助方法
@@ -503,7 +586,6 @@ if (!customElements.get('cus-panel')) {
             
             // 如果实体不存在，跳过该设备
             if (!this._hass.states[entityId]) {
-                console.log(`设备 ${device.id} 的实体 ${entityId} 不可用，跳过渲染`);
                 return;
             }
             // 检查设备是否在任何房间内
@@ -534,6 +616,76 @@ if (!customElements.get('cus-panel')) {
             window.location.pathname = '/airibes_apartment';
           });
         }
+
+        // 添加重置无人按钮事件监听
+        const resetButton = this.shadowRoot.getElementById("reset-button");
+        if (resetButton) {
+            resetButton.addEventListener("click", () => {
+                this.resetNoPersonStatus();
+            });
+        }
+
+        // 添加导出按钮事件监听
+        const exportButton = this.shadowRoot.getElementById("export-button");
+        if (exportButton) {
+            exportButton.addEventListener("click", () => {
+                this.exportApartmentCard();
+            });
+        }
+
+        // 添加设备库按钮事件监听
+        const deviceLibraryButton = this.shadowRoot.getElementById("device-library-button");
+        if (deviceLibraryButton) {
+            deviceLibraryButton.addEventListener("click", () => {
+                window.location.pathname = '/airibes_device_library';
+            });
+        }
+
+        // 添加更多按钮的点击事件
+        const moreButton = this.shadowRoot.querySelector('.more-button');
+        const dropdownMenu = this.shadowRoot.querySelector('.dropdown-menu');
+        
+        // 点击更多按钮显示/隐藏下拉菜单
+        moreButton?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('show');
+        });
+
+        // 点击其他地方关闭下拉菜单
+        document.addEventListener('click', () => {
+            dropdownMenu?.classList.remove('show');
+        });
+
+        // 雷达校准按钮点击事件
+        this.shadowRoot.querySelector('#calibrate-button')?.addEventListener('click', () => {
+            // 判断有雷达设备
+            const radarDevices = this.apartmentData.devices.filter(device => device.type === 'radar');
+            if (radarDevices.length === 0) {
+                return;
+            }else if (radarDevices.length === 1) {
+              this.calibrationStep = 2;
+              const device = radarDevices[0];
+              this.calibratingRadarId = device.id;
+              // 找到雷达所在的房间并保存其 ID
+              const radarRoom = this.findDeviceRoom(device);
+              if (radarRoom) {
+                  this.calibratingRoomId = radarRoom.id;
+                  // 给房间内的门添加标号
+                  this.markDoorNumbers(radarRoom);
+                  this.drawApartment();  // 重新绘制整个户型
+              }
+              this.showCalibrationDialog();
+            }else {
+              this.calibrationStep = 1;
+              this.showCalibrationDialog();
+            }
+        });
+
+        // 添加关闭按钮事件
+        this.shadowRoot.querySelector('#closeDialog')?.addEventListener('click', () => {
+          this.hideCalibrationDialog();
+          this.calibrationStep = 0;
+        });
       }
 
       async connectedCallback() {
@@ -590,6 +742,22 @@ if (!customElements.get('cus-panel')) {
                         'airibes_person_positions_update'
                     )
                 );
+
+                this._calibrationResultHandler = (event) => this._handleCalibrationResult(event);
+                this._unsubs.push(
+                    this._hass.connection.subscribeEvents(
+                        this._calibrationResultHandler,
+                        'airibes_device_calibration_result'
+                    )
+                );
+
+                this._deviceRemovedHandler = (event) => this._handleDeviceRemoved(event);
+                this._unsubs.push(
+                    this._hass.connection.subscribeEvents(
+                        this._deviceRemovedHandler,
+                        'airibes_device_removed'
+                    )
+                );  
 
                 this._eventSubscribed = true;
             }
@@ -689,6 +857,21 @@ if (!customElements.get('cus-panel')) {
         deviceElement.style.color = iconColor;
       }
 
+      _handleCalibrationResult(event) {
+        const { device_id, result } = event.data;
+        this.hideCalibrationDialog();
+        const translations = getTranslation(this._hass?.language || 'en');
+        this.showToast(result ? translations.calibration_success : translations.calibration_failed);
+      }
+
+      _handleDeviceRemoved(event) {
+        // 重新加载数据
+        const deviceId = event.data.device_id;
+        this.loadData();
+        this.personPositions.delete(deviceId);
+        this.drawApartment();
+      }
+
       // 修改 exportApartmentCard 方法
       async exportApartmentCard() {
         const translations = getTranslation(this._hass?.language || 'en');
@@ -703,7 +886,6 @@ if (!customElements.get('cus-panel')) {
             console.log("lovelaceConfig", lovelaceConfig);
             // 检查配置和视图是否存在
             if (!lovelaceConfig || !lovelaceConfig.views || !Array.isArray(lovelaceConfig.views)) {
-                console.error("无效的 Lovelace 配置");
                 this.showToast(translations.export_card_failed);
                 return;
             }
@@ -758,7 +940,6 @@ if (!customElements.get('cus-panel')) {
             this.showToast(translations.export_card_success);
 
         } catch (error) {
-            console.error("导出卡片失败:", error);
             this.showToast(translations.export_card_failed); 
         }
       }
@@ -875,7 +1056,12 @@ if (!customElements.get('cus-panel')) {
       // 添加人员位置更新处理方法
       _handlePersonPositionsUpdate(event) {
         const { device_id, positions } = event.data;
-        this.personPositions.set(device_id, positions);
+        const deviceExists = this.apartmentData.devices.some(device => device.id === device_id);
+        if (deviceExists) {
+          this.personPositions.set(device_id, positions);
+        }else{
+          this.personPositions.delete(device_id);
+        }
         // 重新绘制以更新人员位置
         this.drawApartment();
       }
@@ -890,7 +1076,6 @@ if (!customElements.get('cus-panel')) {
         // 计算布局边界和缩放比例
         const bounds = this.calculateBounds();
         if (!bounds) return;
-
         const container = this.canvas.parentElement;
         const padding = 40;
         const scaleX = (container.clientWidth - padding * 2) / bounds.width;
@@ -1134,19 +1319,31 @@ if (!customElements.get('cus-panel')) {
 
         // 添加点击事件处理 <span class="device-name">${device.id.slice(-4)}</span>
         deviceElement.addEventListener('click', () => {
-          let entityId;
-          if (device.type === 'radar') {
-            entityId = `sensor.airibes_radar_${device.id.toLowerCase()}`;
-          } else {
-            entityId = device.id;
-          }
+          if (this.calibrationStep === 1 && device.type === 'radar') {
+            this.calibrationStep = 2;
+            this.calibratingRadarId = device.id;
+            // 找到雷达所在的房间并保存其 ID
+            const radarRoom = this.findDeviceRoom(device);
+            if (radarRoom) {
+                this.calibratingRoomId = radarRoom.id;
+                // 给房间内的门添加标号
+                this.markDoorNumbers(radarRoom);
+                this.drawApartment();  // 重新绘制整个户型
+            }
+            this.showCalibrationDialog();
+          } else if (!this.calibrationStep) {
+            // 正常的设备点击事件
+            let entityId = device.type === 'radar' 
+                ? `sensor.airibes_radar_${device.id.toLowerCase()}`
+                : device.id;
 
-          const event = new CustomEvent('hass-more-info', {
-            detail: { entityId: entityId },
-            bubbles: true,
-            composed: true
-          });
-          this.dispatchEvent(event);
+            const event = new CustomEvent('hass-more-info', {
+                detail: { entityId: entityId },
+                bubbles: true,
+                composed: true
+            });
+            this.dispatchEvent(event);
+          }
         });
 
         const deviceContainer = this.shadowRoot.querySelector('.stickers-container');
@@ -1289,8 +1486,242 @@ if (!customElements.get('cus-panel')) {
         resetButton.style.display = hasRadarDevices ? 'inline-flex' : 'none';
       }
 
+      // 添加一个方法来控制按钮的禁用状态
+      setButtonsDisabled(disabled) {
+        const apartmentBtn = this.shadowRoot.querySelector('#apartment-btn');
+        const moreButton = this.shadowRoot.querySelector('.more-button');
+        
+        if (apartmentBtn) {
+            if (disabled) {
+                apartmentBtn.setAttribute('disabled', '');
+                apartmentBtn.style.pointerEvents = 'none';
+                apartmentBtn.style.opacity = '0.5';
+            } else {
+                apartmentBtn.removeAttribute('disabled');
+                apartmentBtn.style.pointerEvents = 'auto';
+                apartmentBtn.style.opacity = '1';
+            }
+        }
+        
+        if (moreButton) {
+            if (disabled) {
+                moreButton.style.pointerEvents = 'none';
+                moreButton.style.opacity = '0.5';
+            } else {
+                moreButton.style.pointerEvents = 'auto';
+                moreButton.style.opacity = '1';
+            }
+        }
+      }
+
+      // 修改显示校准弹框方法
+      showCalibrationDialog() {
+        const dialog = this.shadowRoot.getElementById('calibrationDialog');
+        // 禁用按钮
+        this.setButtonsDisabled(true);
+        
+        const radarList = this.shadowRoot.getElementById('radarList');
+        const translations = getTranslation(this._hass?.language || 'en');
+        // 根据校准步骤显示不同的提示文字
+        let tipContent = '';
+        if (this.calibrationStep === 1) {
+            tipContent = `
+                <div class="calibration-tip">
+                    <ha-icon icon="mdi:information"></ha-icon>
+                    <span>${translations.click_radar_to_calibrate}</span>
+                </div>
+            `;
+        } else if (this.calibrationStep === 2) {
+            // 修改门号按钮的创建部分
+            const doorButtons = Array.from(this.doorNumbers.entries())
+                .map(([doorId, number]) => {
+                    const door = this.apartmentData.stickers.find(s => s.id === doorId);
+                    if (!door) return '';
+                    const centerX = door.left + door.width / 2;
+                    const centerY = door.top + door.height / 2;
+                    return `
+                        <div
+                            class="door-number-button ${this.calibratingDoorPosition?.doorId === doorId ? 'selected' : ''}"
+                            data-door-id="${doorId}"
+                            data-center-x="${centerX}"
+                            data-center-y="${centerY}">
+                            ${number}
+                        </div>
+                    `;
+                })
+                .join('');
+
+            tipContent = `
+                <div class="calibration-tip">
+                    <div class="calibration-actions">
+                        <ha-icon icon="mdi:information"></ha-icon>
+                        <span>${translations.stand_at_door}</span>
+                        <div class="door-selection">
+                            <div class="door-buttons">
+                                ${doorButtons}
+                            </div>
+                        </div>
+                        <mwc-button 
+                            raised
+                            class="start-calibration-button"
+                            id="startCalibrationBtn"
+                            .disabled="${!this.calibratingDoorPosition}">
+                            ${translations.start_calibration}
+                        </mwc-button>
+                    </div>
+                </div>
+            `;
+        } else if (this.calibrationStep === 3) {
+            tipContent = `
+                <div class="calibration-tip">
+                    <ha-icon icon="mdi:progress-clock"></ha-icon>
+                    <span>${translations.calibrating}</span>
+                </div>
+            `;
+        }
+        
+        radarList.innerHTML = tipContent;
+
+        // 如果是步骤2，添加开始校准按钮的点击事件
+        if (this.calibrationStep === 2) {
+            // 添加门号按钮的点击事件
+            const doorButtons = this.shadowRoot.querySelectorAll('.door-number-button');
+            doorButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const doorId = button.dataset.doorId;
+                    const centerX = parseFloat(button.dataset.centerX);
+                    const centerY = parseFloat(button.dataset.centerY);
+                    
+                    // 保存选中的门位置信息
+                    this.calibratingDoorPosition = {
+                        doorId,
+                        x: centerX,
+                        y: centerY
+                    };
+
+                    // 更新按钮选中状态
+                    doorButtons.forEach(btn => btn.classList.remove('selected'));
+                    button.classList.add('selected');
+
+                    // 启用开始校准按钮
+                    const startBtn = this.shadowRoot.querySelector('#startCalibrationBtn');
+                    if (startBtn) {
+                        startBtn.disabled = false;
+                    }
+                });
+            });
+
+            // 开始校准按钮点击事件
+            this.shadowRoot.querySelector('#startCalibrationBtn')?.addEventListener('click', () => {
+                if (!this.calibratingDoorPosition) {
+                    this.showToast(translations.select_door_first);
+                    return;
+                }
+                // 根据radarId判断雷达是否在线
+                const entityId = `sensor.airibes_radar_${this.calibratingRadarId.toLowerCase()}`;
+                const entityState = this._hass.states[entityId];
+                if (!entityState || entityState.state !== translations.online) {
+                    this.showToast(translations.calibration_device_offline);
+                    return;
+                }
+                this.calibrationStep = 3;
+                this.showCalibrationDialog();
+                this.startCalibration(this.calibratingRadarId);
+            });
+        }
+        
+        dialog.classList.add('show');
+      }
+
+      // 添加隐藏校准弹框方法
+      hideCalibrationDialog() {
+        const dialog = this.shadowRoot.getElementById('calibrationDialog');
+        if (dialog) {
+            dialog.classList.remove('show');
+        }
+        // 启用按钮
+        this.setButtonsDisabled(false);
+        
+        // 清除校准状态
+        this.calibrationStep = 0;
+        this.calibratingRoomId = null;
+        this.calibratingRadarId = null;
+        this.calibratingDoorPosition = null;
+        this.doorNumbers.clear();
+        
+        // 移除所有门号点击区域
+        const clickAreas = this.shadowRoot.querySelectorAll('.door-number-click-area');
+        clickAreas.forEach(area => area.remove());
+        
+        this.drawApartment();
+      }
+
+      // 添加开始校准方法
+      async startCalibration(radarId) {
+        const translations = getTranslation(this._hass?.language || 'en');
+        try {
+
+            // 将画布坐标转换为实际物理距离（假设1个单位=1厘米）
+            const bounds = this.calculateBounds();
+            const realX = this.calibratingDoorPosition.x  * 10; // 转换为米
+            const realY = this.calibratingDoorPosition.y  * 10; // 转换为米
+
+            // 发送实际物理距离（米）
+            const doorPosition = {
+                x: Number(realX.toFixed(2)), // 保留一位小数
+                y: Number(realY.toFixed(2))
+            };
+            // 调用后端开始校准
+            await this._hass.callWS({
+                type: 'airibes/start_calibration',
+                radar_id: radarId,
+                door_position: doorPosition
+            });
+            
+            this.showToast(translations.calibration_started);
+        } catch (error) {
+            this.showToast(translations.calibration_failed);
+            this.hideCalibrationDialog();
+            this.calibrationStep = 0;
+        }
+      }
+
+      // 添加查找设备所在房间的方法
+      findDeviceRoom(device) {
+        return this.apartmentData?.rooms?.find(room => 
+            device.left >= room.left && 
+            device.left <= (room.left + room.width) &&
+            device.top >= room.top && 
+            device.top <= (room.top + room.height)
+        );
+      }
+
+      // 添加标记门号的方法
+      markDoorNumbers(room) {
+        this.doorNumbers.clear();  // 清除之前的门标号
+        
+        // 找出房间墙上的所有门
+        const doors = this.apartmentData.stickers.filter(sticker => 
+            sticker.type === 'door' && 
+            this.isDoorOnRoomWall(sticker, room)
+        );
+        if (doors.length === 1) {
+          this.calibratingDoorPosition = {
+            doorId: doors[0].id,
+            x: doors[0].left + doors[0].width / 2,
+            y: doors[0].top + doors[0].height / 2
+          };
+        }else { 
+          // 给每个门分配编号
+          doors.forEach((door, index) => {
+              this.doorNumbers.set(door.id, index + 1);
+          });
+        }
+      }
+
     }
   );
 }
 
+window.customPanelset = true;
 window.customPanelset = true;

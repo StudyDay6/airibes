@@ -27,7 +27,7 @@ async def async_setup_entry(
     # 从存储中恢复按钮实体
     buttons = []
     for device_id, device_data in stored_devices.items():
-        name = get_translation_key("entity.button.airibes.has_people_learn")
+        name = get_translation_key("entity.button.airibes.state.has_people_learn")
         button_entity_id = f"{DOMAIN}_radar_{device_id}_learn"
         button = RadarLearnButton(
             hass,
@@ -38,7 +38,7 @@ async def async_setup_entry(
         )
         buttons.append(button)
 
-        name1 = get_translation_key("entity.button.airibes.no_people_learn")
+        name1 = get_translation_key("entity.button.airibes.state.no_people_learn")
         button_entity_id1 = f"{DOMAIN}_radar_{device_id}_learn1"
         button1 = RadarLearnButton(
             hass,
@@ -60,7 +60,7 @@ async def async_setup_entry(
         button_exists = entity_registry.async_get(f"button.{button_entity_id}")
         button_entity_id1 = f"{DOMAIN}_radar_{device_id}_learn1"
         if not button_exists:
-            name = get_translation_key("entity.button.airibes.has_people_learn")
+            name = get_translation_key("entity.button.airibes.state.has_people_learn")
             button = RadarLearnButton(
                 hass,
                 name=name,
@@ -68,7 +68,7 @@ async def async_setup_entry(
                 device_id=device_id,
                 has_people=True
             )
-            name1 = get_translation_key("entity.button.airibes.no_people_learn")
+            name1 = get_translation_key("entity.button.airibes.state.no_people_learn")
             button1 = RadarLearnButton(
                 hass,
                 name=name1,
@@ -136,11 +136,11 @@ class RadarLearnButton(ButtonEntity):
     async def async_press(self) -> None:
         """按钮按下时触发."""
         device_state = self.hass.states.get(f"sensor.{DOMAIN}_radar_{self._device_id}")
-        if device_state and device_state.state != get_translation_key("entity.sensor.airibes.state.online"):
+        if device_state and device_state.state == get_translation_key("entity.sensor.airibes.state.online"):
+            self.hass.bus.async_fire('airibes_btn_learn', {"has_people": self._has_people, "device_id": self._device_id})
+        else:
             self.hass.components.persistent_notification.create(
-                get_translation_key("entity.button.airibes.device_offline"),
-                title=get_translation_key("entity.button.airibes.device_offline_title"),
+                get_translation_key("entity.button.airibes.state.device_offline"),
+                title=get_translation_key("entity.button.airibes.state.device_offline_title"),
                 notification_id="radar_device_offline"
             )
-        else:
-            self.hass.bus.async_fire('airibes_btn_learn', {"has_people": self._has_people, "device_id": self._device_id})

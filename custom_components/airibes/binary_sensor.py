@@ -74,7 +74,7 @@ async def async_setup_entry(
 
                     # 创建区域实体
                     for area in data.get('areas', []):
-                        if area.get('type') == 'monitor-area':  # 只为监测区创建实体
+                        if area.get('type') == 'monitor-area' or area.get('type') == 'interference-area':
                             discovery_info = {
                                 "area_id": area['id'],
                                 "name": area.get('name', f"Area {area['id']}"),

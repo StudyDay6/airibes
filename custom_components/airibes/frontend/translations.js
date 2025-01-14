@@ -131,6 +131,25 @@ export const translations = {
         start: '开始',
         end: '结束',
         learning_end_failed: '学习结束命令发送失败',
+        calibrate: '雷达校准',
+        select_radar: '选择要校准的雷达',
+        no_radar_device: '未找到雷达设备',
+        calibration_started: '雷达校准已开始',
+        calibration_failed: '开始校准失败',
+        click_radar_to_calibrate: '点击需要校准房间中的雷达图标',
+        select_door_first: '请先选择校准的门',
+        stand_at_door: '请走到房间出入口（门）中央位置，点击开始校准',
+        calibration_device_offline: '校准设备已离线',
+        start_calibration: '开始校准',
+        calibrating: '正在校准中...',
+        calibration_success: '校准成功',
+        calibration_failed: '校准失败',
+        why_calibrate: '为什么需要校准?',
+        calibration_help_title: '雷达校准说明',
+        calibration_help_text: '由于以下原因，雷达的实际安装位置与户型图中绘制的位置可能存在差异，因此需要进行校准，确保雷达监测结果与户型图一致：\n\n' +
+            '1. 我们允许用户在绘制户型图时不必精确设计户型；\n' +
+            '2. 雷达的实际位置可能与户型图中的位置不同；\n' +
+            '3. 雷达的安装高度可能有所不同，我们无需用户精确测量安装高度和角度。'
     },
     'en': {
         title: 'My Layout',
@@ -211,6 +230,16 @@ export const translations = {
         learning_single_person_message: 'To ensure accurate learning, please walk around the room 3 times!',
         learning_no_people_message: 'Please ensure that there is no one in the room where the radar is located before starting learning!',
         learning_end_failed: 'Learning End Failed',
+        view: 'View',
+        calibrate: 'Calibrate',
+        select_radar: 'Select Radar to Calibrate',
+        no_radar_device: 'No radar device found',
+        calibration_started: 'Radar calibration started',
+        calibration_failed: 'Failed to start calibration',
+        click_radar_to_calibrate: 'Click the radar icon in the room to calibrate',
+        stand_at_door: 'Please stand at the center of the room entrance (door) and click start calibration',
+        start_calibration: 'Start Calibration',
+        calibrating: 'Calibrating...'
     },
     'de': {
         title: 'Mein Layout',
@@ -337,6 +366,16 @@ export const translations = {
         delete_success: 'Erfolgreich gelöscht',
         delete_failed: 'Löschen fehlgeschlagen',
         learning: 'Lernen...',
+        view: 'Anzeigen',
+        calibrate: 'Kalibrieren',
+        select_radar: 'Select Radar to Calibrate',
+        no_radar_device: 'No radar device found',
+        calibration_started: 'Radar calibration started',
+        calibration_failed: 'Failed to start calibration',
+        click_radar_to_calibrate: 'Click the radar icon in the room to calibrate',
+        stand_at_door: 'Please stand at the center of the room entrance (door) and click start calibration',
+        start_calibration: 'Start Calibration',
+        calibrating: 'Calibrating...'
     },
     'fr': {
         title: 'Mon Plan',
@@ -463,6 +502,22 @@ export const translations = {
         delete_success: 'Suppression réussie',
         delete_failed: 'Échec de la suppression',
         learning: 'Apprentissage...',
+        view: 'Voir',
+        calibrate: 'Calibrer',
+        select_radar: 'Select Radar to Calibrate',
+        no_radar_device: 'No radar device found',
+        calibration_started: 'Radar calibration started',
+        calibration_failed: 'Failed to start calibration',
+        click_radar_to_calibrate: 'Click the radar icon in the room to calibrate',
+        stand_at_door: 'Please stand at the center of the room entrance (door) and click start calibration',
+        start_calibration: 'Start Calibration',
+        calibrating: 'Calibrating...',
+        why_calibrate: '为什么需要校准?',
+        calibration_help_title: '雷达校准说明',
+        calibration_help_text: '由于以下原因，雷达的实际安装位置与户型图中绘制的位置可能存在差异，因此需要进行校准，确保雷达监测结果与户型图一致：\n\n' +
+            '1. 我们允许用户在绘制户型图时不必精确设计户型；\n' +
+            '2. 雷达的实际位置可能与户型图中的位置不同；\n' +
+            '3. 雷达的安装高度可能有所不同，我们无需用户精确测量安装高度和角度。'
     }
 };
 

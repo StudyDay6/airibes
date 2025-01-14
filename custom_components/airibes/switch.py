@@ -7,11 +7,10 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.entity_registry import async_get
 from .utils import get_translation_key
-import logging
+
 
 from .const import DOMAIN
 
-_LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.radar_sensors"
 
@@ -63,7 +62,6 @@ async def async_setup_entry(
         # learn_exists = entity_registry.async_get(f"switch.{learn_switch_entity_id}")
 
         if ap_exists:
-            _LOGGER.info(f"AP={switch_entity_id}, Learn={learn_switch_entity_id}")
             return None
 
         name = "Radar"
@@ -86,7 +84,6 @@ async def async_setup_entry(
 
         # Add two switch entities
         async_add_entities([switch, learn_switch])
-        _LOGGER.info(f"已创建新的雷达开关实体: AP={switch_entity_id}, Learn={learn_switch_entity_id}")
         return switch
 
     # Save the method to the hass data
@@ -163,14 +160,18 @@ class RadarAPSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on the switch."""
-        self._is_on = True
-        await sender_ap_cmd(self.hass, self._device_id, True)
+        device_state = self.hass.states.get(f"sensor.{DOMAIN}_radar_{self._device_id}") 
+        if device_state and device_state.state == get_translation_key("entity.sensor.airibes.state.online"):
+            self._is_on = True
+            await sender_ap_cmd(self.hass, self._device_id, True)
 
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn off the switch."""
-        self._is_on = False
-        await sender_ap_cmd(self.hass, self._device_id, False)
+        device_state = self.hass.states.get(f"sensor.{DOMAIN}_radar_{self._device_id}") 
+        if device_state and device_state.state == get_translation_key("entity.sensor.airibes.state.online"):
+            self._is_on = False
+            await sender_ap_cmd(self.hass, self._device_id, False)
 
 class RadarLearnSwitch(SwitchEntity):
     """Radar Self-Learning Switch Entity."""
@@ -183,7 +184,7 @@ class RadarLearnSwitch(SwitchEntity):
             entity_id: Entity ID
             device_id: Device ID
         """
-        self._attr_name = f"{name}{get_translation_key("entity.switch.airibes.learn")}"
+        self._attr_name = f"{name}{get_translation_key("entity.switch.airibes.state.learn")}"
         self.entity_id = f"switch.{entity_id}"
         self._attr_unique_id = f"radar_learn_{device_id}"
         self._device_id = device_id
@@ -203,6 +204,11 @@ class RadarLearnSwitch(SwitchEntity):
     def is_on(self) -> bool:
         """Returns the switch state."""
         return self._is_on
+    
+    @property
+    def available(self) -> bool:
+        """Returns the switch availability."""
+        return True
 
     @property
     def icon(self) -> str:
@@ -231,17 +237,19 @@ class RadarLearnSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on the switch."""
-        self._is_on = True
-        # Send self-learning command
-        await sender_learn_cmd(self.hass, self._device_id, True)
-        _LOGGER.info("雷达设备 %s 自学习命令已发送", self._device_id)
+        device_state = self.hass.states.get(f"sensor.{DOMAIN}_radar_{self._device_id}")
+        if device_state and device_state.state == get_translation_key("entity.sensor.airibes.state.online"):
+            self._is_on = True
+            # Send self-learning command
+            await sender_learn_cmd(self.hass, self._device_id, True)
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn off the switch."""
-        self._is_on = False
-        # Send stop self-learning command
-        await sender_learn_cmd(self.hass, self._device_id, False)
-        _LOGGER.info("雷达设备 %s 自学习已停止", self._device_id)
+        device_state = self.hass.states.get(f"sensor.{DOMAIN}_radar_{self._device_id}") 
+        if device_state and device_state.state == get_translation_key("entity.sensor.airibes.state.online"):
+            self._is_on = False
+            # Send stop self-learning command
+            await sender_learn_cmd(self.hass, self._device_id, False)
 
 
 

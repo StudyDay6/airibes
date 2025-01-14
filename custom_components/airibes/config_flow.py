@@ -7,11 +7,22 @@ from .const import DOMAIN, DEFAULT_NAME, DEFAULT_PANEL_TITLE
 from .utils import get_translation_key
 
 class AiribesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """处理配置流程."""
+    """Handle a config flow."""
+
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return AiribesOptionsFlow(config_entry)
+
     async def async_step_user(self, user_input=None):
-        """处理用户输入."""
+        """Handle a flow initialized by the user."""
+        # 检查是否已经配置过
+        if self._async_current_entries():
+            return self.async_abort(reason="single_instance_allowed")
+
         if user_input is not None:
             # 确保包含 clear_data_on_unload 选项，默认为 False
             if "clear_data_on_unload" not in user_input:
@@ -34,12 +45,6 @@ class AiribesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "device_name": "Airibes"
             }
         )
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry):
-        """获取选项流程."""
-        return AiribesOptionsFlow(config_entry)
 
 class AiribesOptionsFlow(config_entries.OptionsFlow):
     """Airibes 配置选项流程."""

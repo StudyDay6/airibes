@@ -56,7 +56,6 @@ async def async_setup_entry(
 
         # 检查实体是否已存在
         if entity_registry.async_get(f"select.{select_entity_id}"):
-            _LOGGER.info(f"雷达灵敏度选择实体已存在: {select_entity_id}")
             return None
 
         # 创建新实体
@@ -65,7 +64,6 @@ async def async_setup_entry(
             hass, name=name, entity_id=select_entity_id, device_id=device_id
         )
         async_add_entities([select])
-        _LOGGER.info(f"已创建新的雷达灵敏度选择实体: {select_entity_id}")
         return select
 
     # 将方法保存到 hass 数据中
@@ -87,10 +85,11 @@ class RadarLevelSelect(SelectEntity):
         self.entity_id = f"select.{entity_id}"
         self._attr_unique_id = f"radar_level_{device_id}"
         self._device_id = device_id
+        self._available = True
 
         # 设置可选项
-        self._attr_options = [get_translation_key("entity.select.airibes.high"), get_translation_key("entity.select.airibes.medium"), get_translation_key("entity.select.airibes.low")]
-        self._attr_current_option = get_translation_key("entity.select.airibes.medium")
+        self._attr_options = [get_translation_key("entity.select.airibes.state.high"), get_translation_key("entity.select.airibes.state.medium"), get_translation_key("entity.select.airibes.state.low")]
+        self._attr_current_option = get_translation_key("entity.select.airibes.state.medium")
         self.hass = hass
 
         # 设备信息
@@ -101,6 +100,11 @@ class RadarLevelSelect(SelectEntity):
             model="Radar Sensor",
             sw_version="1.0",
         )
+
+    @property
+    def available(self) -> bool:
+        """返回选择实体的可用性."""
+        return self._available
 
     async def async_added_to_hass(self):
         """当实体被添加到 Home Assistant 时调用."""
@@ -121,6 +125,14 @@ class RadarLevelSelect(SelectEntity):
         ):
             del self.hass.data[DOMAIN]["selects"][self._device_id]
 
+    async def async_update(self):
+        """更新选择实体的状态."""
+        device_state = self.hass.states.get(f"sensor.{DOMAIN}_radar_{self._device_id}")
+        if device_state and device_state.state == get_translation_key("entity.sensor.airibes.state.online"):
+            self._available = True
+        else:
+            self._available = False
+
     async def async_select_option(self, option: str) -> None:
         """更新选择的选项."""
         if option not in self._attr_options:
@@ -129,7 +141,7 @@ class RadarLevelSelect(SelectEntity):
         self._attr_current_option = option
 
         # 转换选项为数值
-        level_map = {get_translation_key("entity.select.airibes.low"): 0, get_translation_key("entity.select.airibes.medium"): 1, get_translation_key("entity.select.airibes.high"): 2}
+        level_map = {get_translation_key("entity.select.airibes.state.low"): 0, get_translation_key("entity.select.airibes.state.medium"): 1, get_translation_key("entity.select.airibes.state.high"): 2}
         level_value = level_map.get(option, 1)
 
         try:
@@ -140,4 +152,4 @@ class RadarLevelSelect(SelectEntity):
                 await mqtt_client._sender_profile_data(self._device_id, sub_data)
 
         except Exception as e:
-            _LOGGER.error("设置雷达灵敏度失败: %s", str(e))
+            _LOGGER.debug("设置雷达灵敏度失败: %s", str(e))
